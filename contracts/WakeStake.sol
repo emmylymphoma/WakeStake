@@ -31,6 +31,12 @@ contract WakeStake {
         return _leavesToReturn;
     }
 
+    // Hashing functions. Keep these in sync with src/hashing.ts and circuits/src/main.nr.
+
+    function _hashLeaf(address _token, uint256 _amount, uint256 _allSecretsHash) internal pure returns (uint256) {
+      return PoseidonT4.hash([uint256(uint160(_token)), _amount, _allSecretsHash]);
+    }
+
     function _insetLeaf(uint256 _leaf) internal {
       uint256 root = LeanIMT.insert(tree, _leaf);
       // tree.size - 1 == leafIndex, this saves us on storage :D
@@ -43,7 +49,7 @@ contract WakeStake {
     /// @notice Caller must first call `approve(address(this), amount)` on the token.
     function stake(address _token, uint256 _amount, uint256 _allSecretsHash) external {
       IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
-      uint256 leaf = PoseidonT4.hash([uint256(uint160(_token)), _amount, _allSecretsHash]);
+      uint256 leaf = _hashLeaf(_token, _amount, _allSecretsHash);
       _insetLeaf(leaf);
 
     }

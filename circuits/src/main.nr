@@ -4,6 +4,33 @@ use poseidon::poseidon::bn254 as poseidon;
 // Maximum tree depth the circuit supports. 32 levels = ~4 billion leaves.
 global MAX_DEPTH: u32 = 32;
 
+// Hashing functions. Keep these in sync with src/hashing.ts.
+
+fn hash_secret(secret: Field) -> Field {
+    poseidon::hash_1([secret])
+}
+
+fn hash_nullifier(nullifier_secret: Field) -> Field {
+    poseidon::hash_1([nullifier_secret])
+}
+
+fn hash_all_secrets(
+    nullifier_secret: Field,
+    secret_hash: Field,
+    wake_timestamp: Field,
+    donation_address: Field,
+) -> Field {
+    poseidon::hash_4([nullifier_secret, secret_hash, wake_timestamp, donation_address])
+}
+
+fn hash_leaf(token: Field, amount: Field, all_secrets_hash: Field) -> Field {
+    poseidon::hash_3([token, amount, all_secrets_hash])
+}
+
+fn hash_merkle_node(children: [Field; 2]) -> Field {
+    poseidon::hash_2(children)
+}
+
 fn main(
     root: pub Field,
     nullifier: pub Field,
@@ -33,15 +60,11 @@ fn main(
     depth: u32,
     siblings: [Field; MAX_DEPTH],
 ) {
-    let all_secrets_hash: Field = poseidon::hash_4([
-        nullifier_secret,
-        secret_hash,
-        wake_timestamp,
-        donation_address,
-    ]);
-    let leaf: Field = poseidon::hash_3([secret_token, secret_amount, all_secrets_hash]);
+    let all_secrets_hash: Field =
+        hash_all_secrets(nullifier_secret, secret_hash, wake_timestamp, donation_address);
+    let leaf: Field = hash_leaf(secret_token, secret_amount, all_secrets_hash);
     let indices: [bool; MAX_DEPTH] = index.to_le_bits();
-    let computed_root: Field = binary_merkle_root(poseidon::hash_2, leaf, depth, indices, siblings);
+    let computed_root: Field = binary_merkle_root(hash_merkle_node, leaf, depth, indices, siblings);
     assert(computed_root == root, "invalid merkle proof");
 
     // wake_timestamp is lower then past_timestamp
@@ -75,7 +98,7 @@ fn main(
         //                                wake_timestamp can only be between these
 
         // others dont know secret, so this way owner can only withdraw when they are on time!
-        let secret_hash_recreated: Field = poseidon::hash_1([secret]);
+        let secret_hash_recreated: Field = hash_secret(secret);
         assert(
             secret_hash == secret_hash_recreated,
             "you need to know the secret if wake up in time",
@@ -87,14 +110,14 @@ fn main(
 
     // check if we are withdrawing
     if (withdraw_token == 0x00) {
-        let new_all_secrets_hash: Field = poseidon::hash_4([
+        let new_all_secrets_hash: Field = hash_all_secrets(
             new_nullifier_secret,
             new_secret_hash,
             new_wake_timestamp,
             donation_address,
-        ]);
+        );
         let new_leaf_recreated: Field =
-            poseidon::hash_3([secret_token, secret_amount, new_all_secrets_hash]);
+            hash_leaf(secret_token, secret_amount, new_all_secrets_hash);
         assert(
             new_leaf == new_leaf_recreated,
             "could not recreate new_leaf from hashing: secret_token,secret_amount,all_secrets_hash",
@@ -110,5 +133,5 @@ fn main(
         );
     }
 
-    assert(nullifier == poseidon::hash_1([nullifier_secret]));
+    assert(nullifier == hash_nullifier(nullifier_secret));
 }
