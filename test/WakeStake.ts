@@ -7,7 +7,7 @@ import { network } from "hardhat";
 import type { Address } from "viem";
 
 import WakeStakeModule from "../ignition/modules/WakeStake.js";
-import { createTimestampWindow, executeCircuit } from "../src/circuit.js";
+import { createTimestampWindow, executeCircuit, generateProof } from "../src/circuit.js";
 import { DAY, HOUR } from "../src/constants.js";
 import { fetchMerkleTree } from "../src/merkleTree.js";
 import {
@@ -31,15 +31,15 @@ describe("WakeStake", async function () {
   const [, owner, ownerRecipient, groupMember, charity] = await viem.getWalletClients();
 
   async function deployFixture() {
-    const { wakeStake } = await ignition.deploy(WakeStakeModule);
+    const { wakeStake, verifier } = await ignition.deploy(WakeStakeModule);
     const token = await viem.deployContract("MockERC20", ["Mock", "MCK"]);
     await token.write.mint([owner.account.address, STAKE_AMOUNT]);
     await token.write.approve([wakeStake.address, STAKE_AMOUNT], { account: owner.account });
-    return { wakeStake, token };
+    return { wakeStake, verifier, token };
   }
 
   async function setup() {
-    const { wakeStake, token } = await networkHelpers.loadFixture(deployFixture);
+    const { wakeStake, verifier, token } = await networkHelpers.loadFixture(deployFixture);
     const stakeDetails: StakeDetails = {
       token: addressToField(token.address),
       amount: STAKE_AMOUNT,
@@ -75,7 +75,7 @@ describe("WakeStake", async function () {
     async function wake(currentStake: NoteWithSecret, secondsUntilNewWake: bigint) {
       const { transactionTimestamp, pastTimestamp, futureTimestamp } = await nextTimestampWindow();
       const nextStake = createNote(stakeDetails, transactionTimestamp + secondsUntilNewWake);
-      const { publicValues } = await executeCircuit(compiledCircuit, {
+      const { proof, newLeaf, root, nullifier } = await generateProof(compiledCircuit, {
         merkleTree: await syncMerkleTree(),
         ...currentStake,
         pastTimestamp,
@@ -84,14 +84,7 @@ describe("WakeStake", async function () {
       });
       await networkHelpers.time.setNextBlockTimestamp(transactionTimestamp);
       await wakeStake.write.wake(
-        [
-          publicValues.newLeaf,
-          publicValues.root,
-          publicValues.nullifier,
-          pastTimestamp,
-          futureTimestamp,
-          "0x",
-        ],
+        [newLeaf, root, nullifier, pastTimestamp, futureTimestamp, proof],
         { account: owner.account },
       );
       return nextStake;
@@ -101,9 +94,11 @@ describe("WakeStake", async function () {
       currentStake: NoteWithSecret,
       recipient: Address,
       senderAccount = owner.account,
+      // only for testing: send the transaction to a different recipient than the proof is for
+      transactionRecipient: Address = recipient,
     ) {
       const { transactionTimestamp, pastTimestamp, futureTimestamp } = await nextTimestampWindow();
-      const { publicValues } = await executeCircuit(compiledCircuit, {
+      const { proof, root, nullifier } = await generateProof(compiledCircuit, {
         merkleTree: await syncMerkleTree(),
         ...currentStake,
         pastTimestamp,
@@ -117,14 +112,14 @@ describe("WakeStake", async function () {
       await networkHelpers.time.setNextBlockTimestamp(transactionTimestamp);
       return wakeStake.write.withdraw(
         [
-          recipient,
+          transactionRecipient,
           token.address,
           STAKE_AMOUNT,
-          publicValues.root,
-          publicValues.nullifier,
+          root,
+          nullifier,
           pastTimestamp,
           futureTimestamp,
-          "0x",
+          proof,
         ],
         { account: senderAccount },
       );
@@ -132,6 +127,7 @@ describe("WakeStake", async function () {
 
     return {
       wakeStake,
+      verifier,
       token,
       stakeDetails,
       syncMerkleTree,
@@ -186,6 +182,20 @@ describe("WakeStake", async function () {
     await viem.assertions.revertWith(
       withdraw(currentStake, ownerRecipient.account.address),
       "already withdrawn or woken up, nullifier provided was already spent",
+    );
+  });
+
+  it("rejects a valid proof sent with a different recipient", async function () {
+    const { verifier, stake, withdraw } = await setup();
+
+    const stakedNote = await stake(DAY);
+    const stolenRecipient = groupMember.account.address;
+
+    // the generated verifier reverts on a bad proof instead of returning false
+    await viem.assertions.revertWithCustomError(
+      withdraw(stakedNote, ownerRecipient.account.address, groupMember.account, stolenRecipient),
+      verifier,
+      "SumcheckFailed",
     );
   });
 
