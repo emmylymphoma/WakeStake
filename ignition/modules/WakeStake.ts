@@ -32,7 +32,7 @@ export default buildModule("WakeStakeModule", (m) => {
     libraries: { LeanIMT: leanIMT, PoseidonT4: poseidonT4 },
   });
 
-  const donationGroupFactory = m.contract("DonationGroupFactory");
+  const donationGroupFactory = m.contract("DonationGroupFactory", [wakeStake, stakeOwnershipVerifier]);
 
   return { wakeStake, verifier, stakeOwnershipVerifier, leanIMT, poseidonT3, poseidonT4, donationGroupFactory };
 });

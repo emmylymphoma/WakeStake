@@ -8,9 +8,10 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IDonationAddressProvider} from "./interfaces/IDonationAddressProvider.sol";
 import {IWakeStakeVerifier} from "./interfaces/IWakeStakeVerifier.sol";
+import {IWakeStake} from "./interfaces/IWakeStake.sol";
 
 /// @dev `owner()` (from Ownable) is the contract admin, not a staker
-contract WakeStake is Ownable {
+contract WakeStake is Ownable, IWakeStake {
     using LeanIMT for LeanIMTData;
     using SafeERC20 for IERC20;
 
@@ -26,7 +27,6 @@ contract WakeStake is Ownable {
     // event indexing is a pain and not needed for hackathons!!!
     mapping(uint256 index => uint256 leaf) public leaves;
     mapping (uint256 root => bool itExists) public rootHistory;
-    /// @notice public so groups can check a StakeOwnershipVerifier proof's stake wasn't withdrawn or woken yet
     mapping (uint256 nullifier => bool isSpent) public nullifiers;
 
 
