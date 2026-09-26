@@ -44,6 +44,8 @@ fn main(
     // so we get a these 2 timestamps instead. So we have a range of where the current time is
     future_timestamp: pub Field, // always in the future (contract checks it)
     past_timestamp: pub Field, // always in the past (contract checks it)
+    // true when the owner woke up too late, so the payout goes to donation_address and the contract charges a fee
+    lose: pub bool,
     // known by only group + owner
     nullifier_secret: Field,
     secret_hash: Field,
@@ -73,6 +75,8 @@ fn main(
     // future_timestamp is lower then the wake_timestamp
     let wake_is_in_future: bool = future_timestamp.lt(wake_timestamp);
     assert(wake_is_in_past | wake_is_in_future, "timestamp window must not contain wake_timestamp");
+    // bound to the real outcome, so a late withdraw can't skip the fee by claiming lose = false
+    assert(lose == wake_is_in_past, "lose must be true exactly when the owner woke up too late");
 
 
     if (wake_is_in_past) {

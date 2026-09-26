@@ -16,7 +16,12 @@ export default buildModule("WakeStakeModule", (m) => {
     libraries: { RelationsLib: relationsLib, ZKTranscriptLib: zkTranscriptLib },
   });
 
-  const wakeStake = m.contract("WakeStake", [verifier], {
+  // set in ignition/parameters.json, defaults to the deployer (account 0) and 5%
+  const owner = m.getParameter("owner", m.getAccount(0));
+  const feePayoutAddress = m.getParameter("feePayoutAddress", m.getAccount(0));
+  const feePercentage = m.getParameter("feePercentage", 5n);
+
+  const wakeStake = m.contract("WakeStake", [verifier, owner, feePayoutAddress, feePercentage], {
     libraries: { LeanIMT: leanIMT, PoseidonT4: poseidonT4 },
   });
 

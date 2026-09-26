@@ -17,7 +17,7 @@ export type CircuitInputs = {
 } & ({ noteAfterWake: Note } | { withdrawal: WithdrawalDetails });
 
 /** The values the contract call needs, besides the proof. */
-export type PublicValues = { root: bigint; nullifier: bigint; newLeaf: bigint };
+export type PublicValues = { root: bigint; nullifier: bigint; newLeaf: bigint; lose: boolean };
 
 /** Past and future timestamps around `currentTimestamp`, for the circuit and the contract call. */
 export function createTimestampWindow(currentTimestamp: bigint) {
@@ -42,6 +42,8 @@ export function buildNoirInputMap(circuitInputs: CircuitInputs) {
     root: merkleProof.root,
     nullifier: noteNullifier(note),
     newLeaf: noteAfterWake ? noteLeaf(noteAfterWake) : 0n,
+    // woke up too late, same check as `wake_is_in_past` in the circuit
+    lose: note.wakeTimestamp < circuitInputs.pastTimestamp,
   };
   const noirInputMap: InputMap = {
     root: toHex(publicValues.root),
@@ -52,6 +54,7 @@ export function buildNoirInputMap(circuitInputs: CircuitInputs) {
     withdraw_token: toHex(withdrawal?.token ?? 0n),
     future_timestamp: toHex(circuitInputs.futureTimestamp),
     past_timestamp: toHex(circuitInputs.pastTimestamp),
+    lose: publicValues.lose,
     nullifier_secret: toHex(note.nullifierSecret),
     secret_hash: toHex(note.secretHash),
     wake_timestamp: toHex(note.wakeTimestamp),

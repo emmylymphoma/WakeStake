@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import type { CompiledCircuit } from "@noir-lang/noir_js";
+import { Noir, type CompiledCircuit } from "@noir-lang/noir_js";
 import { network } from "hardhat";
 import type { Address } from "viem";
 
 import WakeStakeModule from "../ignition/modules/WakeStake.js";
-import { createTimestampWindow, executeCircuit, generateProof } from "../src/circuit.js";
+import {
+  buildNoirInputMap,
+  createTimestampWindow,
+  executeCircuit,
+  generateProof,
+} from "../src/circuit.js";
 import { DAY, HOUR } from "../src/constants.js";
 import { fetchMerkleTree } from "../src/merkleTree.js";
 import {
@@ -24,14 +29,25 @@ const compiledCircuit = JSON.parse(
 ) as CompiledCircuit;
 
 const STAKE_AMOUNT = 100n * 10n ** 18n;
+const FEE_PERCENTAGE = 5n;
+const LOSE_FEE = (STAKE_AMOUNT * FEE_PERCENTAGE) / 100n;
 
 describe("WakeStake", async function () {
   const { viem, ignition, networkHelpers } = await network.create();
   const publicClient = await viem.getPublicClient();
-  const [, owner, ownerRecipient, groupMember, charity] = await viem.getWalletClients();
+  // `owner` is the staker who has to wake up, `contractOwner` is the Ownable admin
+  const [contractOwner, owner, ownerRecipient, groupMember, charity, feeCollector, newFeeCollector] =
+    await viem.getWalletClients();
 
   async function deployFixture() {
-    const { wakeStake, verifier } = await ignition.deploy(WakeStakeModule);
+    const { wakeStake, verifier } = await ignition.deploy(WakeStakeModule, {
+      parameters: {
+        WakeStakeModule: {
+          feePayoutAddress: feeCollector.account.address,
+          feePercentage: FEE_PERCENTAGE,
+        },
+      },
+    });
     const token = await viem.deployContract("MockERC20", ["Mock", "MCK"]);
     await token.write.mint([owner.account.address, STAKE_AMOUNT]);
     await token.write.approve([wakeStake.address, STAKE_AMOUNT], { account: owner.account });
@@ -98,7 +114,7 @@ describe("WakeStake", async function () {
       transactionRecipient: Address = recipient,
     ) {
       const { transactionTimestamp, pastTimestamp, futureTimestamp } = await nextTimestampWindow();
-      const { proof, root, nullifier } = await generateProof(compiledCircuit, {
+      const { proof, root, nullifier, lose } = await generateProof(compiledCircuit, {
         merkleTree: await syncMerkleTree(),
         ...currentStake,
         pastTimestamp,
@@ -119,6 +135,7 @@ describe("WakeStake", async function () {
           nullifier,
           pastTimestamp,
           futureTimestamp,
+          lose,
           proof,
         ],
         { account: senderAccount },
@@ -149,6 +166,7 @@ describe("WakeStake", async function () {
 
     assert.equal(await token.read.balanceOf([wakeStake.address]), 0n);
     assert.equal(await token.read.balanceOf([ownerRecipient.account.address]), STAKE_AMOUNT);
+    assert.equal(await token.read.balanceOf([feeCollector.account.address]), 0n, "no fee when on time");
   });
 
   it("stake, wake a few times with different wake times, then withdraw", async function () {
@@ -249,11 +267,62 @@ describe("WakeStake", async function () {
       /only withdraw to donation_address/,
     );
 
-    // a group member knows every secret except `secret`, and sends the stake to the charity
+    // a group member knows every secret except `secret`
     const groupMemberView: NoteWithSecret = { note: currentStake.note, secret: 0n };
+
+    // they can't skip the fee by claiming the owner didn't lose
+    const { noirInputMap } = buildNoirInputMap({
+      merkleTree: await syncMerkleTree(),
+      ...groupMemberView,
+      pastTimestamp,
+      futureTimestamp,
+      withdrawal: {
+        recipient: stakeDetails.donationAddress,
+        token: stakeDetails.token,
+        amount: STAKE_AMOUNT,
+      },
+    });
+    assert.equal(noirInputMap.lose, true);
+    await assert.rejects(
+      new Noir(compiledCircuit).execute({ ...noirInputMap, lose: false }),
+      /lose must be true exactly when the owner woke up too late/,
+    );
+
+    // so they send the stake to the charity, and the fee goes to the fee payout address
     await withdraw(groupMemberView, charity.account.address, groupMember.account);
 
     assert.equal(await token.read.balanceOf([wakeStake.address]), 0n);
-    assert.equal(await token.read.balanceOf([charity.account.address]), STAKE_AMOUNT);
+    assert.equal(await token.read.balanceOf([charity.account.address]), STAKE_AMOUNT - LOSE_FEE);
+    assert.equal(await token.read.balanceOf([feeCollector.account.address]), LOSE_FEE);
+  });
+
+  it("only the contract owner can change the fee payout address", async function () {
+    const { wakeStake } = await setup();
+
+    assert.equal(
+      (await wakeStake.read.owner()).toLowerCase(),
+      contractOwner.account.address.toLowerCase(),
+    );
+    await viem.assertions.revertWithCustomErrorWithArgs(
+      wakeStake.write.setFeePayoutAddress([newFeeCollector.account.address], {
+        account: owner.account,
+      }),
+      wakeStake,
+      "OwnableUnauthorizedAccount",
+      [owner.account.address],
+    );
+
+    await viem.assertions.emitWithArgs(
+      wakeStake.write.setFeePayoutAddress([newFeeCollector.account.address], {
+        account: contractOwner.account,
+      }),
+      wakeStake,
+      "FeePayoutAddressChanged",
+      [newFeeCollector.account.address],
+    );
+    assert.equal(
+      (await wakeStake.read.feePayoutAddress()).toLowerCase(),
+      newFeeCollector.account.address.toLowerCase(),
+    );
   });
 });

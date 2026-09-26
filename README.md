@@ -63,10 +63,13 @@ pnpm hardhat keystore set ETHERSCAN_API_KEY
 regenerate the verifier if the circuit changed, then deploy and verify on etherscan:
 ```sh
 pnpm build:verifier
-pnpm hardhat ignition deploy ignition/modules/WakeStake.ts --network sepolia --verify
+pnpm hardhat ignition deploy ignition/modules/WakeStake.ts --network sepolia --parameters ignition/parameters.json --verify
 ```
 addresses end up in `ignition/deployments/chain-11155111`. rerun the same command to resume a failed deploy.
 if only verification failed, retry it with `pnpm hardhat ignition verify chain-11155111`.
+
+`ignition/parameters.json` sets the contract `owner` (only account that can change the fee payout address), `feePayoutAddress` and `feePercentage`. anything left out defaults to the deployer and 5%.
+after changing the circuit or contracts, redeploy with `--reset` (or a new `--deployment-id`), otherwise ignition refuses because the old deployment doesn't match.
 
 # setup github
 ## install
@@ -88,13 +91,14 @@ git config --global user.email "<email on your github account>"
 ```
 
 # deployments
-WakeStake: [0x037bE9772a71C2953686ED6221562aa67BF14786](https://sepolia.etherscan.io/address/0x037bE9772a71C2953686ED6221562aa67BF14786#code)  
-verifier (honk bb) :[0x0d2a31af11e80265C96AFFd6AcB9633d04B65Eda](https://sepolia.etherscan.io/address/0x0d2a31af11e80265C96AFFd6AcB9633d04B65Eda#code)  
+sepolia, with fee (10%), `lose` and Ownable. owner: `0x6E6E6f5B804ce0874939D5BFcfe6f5bCbABAFB8E`  
+WakeStake: [0xcF16ab3255EEB05ef8fC57932f6470FEaBA8deAF](https://sepolia.etherscan.io/address/0xcF16ab3255EEB05ef8fC57932f6470FEaBA8deAF#code)  
+verifier (honk bb): [0xe241fe1088738e83057F69b65c19912684ee0B78](https://sepolia.etherscan.io/address/0xe241fe1088738e83057F69b65c19912684ee0B78#code)  
 libraries: 
 ```sh
-"PoseidonT3": "0x36610be8557e1386B8574cb1d26Cc7bD6eC7BA10",
-"PoseidonT4": "0xBAdDAc8a601cD93dbdf169F0C2054913914eBBe3",
-"RelationsLib": "0xfaCDe124040fa0368Bc2354650C7D76a9e396BF9",
-"ZKTranscriptLib": "0x4465c783DF68bEbD45ebe97ce55c548730A40d22",
-"LeanIMT": "0xb1dfbA5e831024cec82166B94A83Fc948830A540",
+"PoseidonT3": "0xdDfF2a61bDCeD14669D5AaBC8DF9087839d5942B",
+"PoseidonT4": "0xA6c1A2d728880d77F6c3030b1fd9549292E0991A",
+"RelationsLib": "0xa0568b6194082Cdb4b3de7Fad45D5447cDD30240",
+"ZKTranscriptLib": "0x02078800187B4E831479775c4e240064578602aE",
+"LeanIMT": "0x8817422387ac287Af6D0735678F53ed21308Fd80",
 ```
