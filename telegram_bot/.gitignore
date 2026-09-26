@@ -1,0 +1,4 @@
+node_modules
+.env
+groups.json
+names.json
