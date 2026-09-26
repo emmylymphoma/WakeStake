@@ -7,5 +7,7 @@
     "outDir": "dist",
     "types": ["node"],
     "verbatimModuleSyntax": true
-  }
+  },
+  // only the hardhat side; app/ and telegram_bot/ have their own tsconfig
+  "include": ["hardhat.config.ts", "src", "test", "scripts", "ignition", "artifacts/**/*.d.ts"]
 }
