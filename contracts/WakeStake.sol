@@ -41,9 +41,9 @@ contract WakeStake {
     }
 
     /// @notice Caller must first call `approve(address(this), amount)` on the token.
-    function stake(address _token, uint256 _amount, uint256 _hashedSecrets) external {
+    function stake(address _token, uint256 _amount, uint256 _allSecretsHash) external {
       IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
-      uint256 leaf = PoseidonT4.hash([uint256(uint160(_token)), _amount, _hashedSecrets]);
+      uint256 leaf = PoseidonT4.hash([uint256(uint160(_token)), _amount, _allSecretsHash]);
       _insetLeaf(leaf);
 
     }
@@ -91,5 +91,6 @@ contract WakeStake {
       // proof has proven we woken up before the alarm and that we have committed to a valid _newleaf
       // tree.size - 1 == leafIndex, this saves us on storage :D
       _insetLeaf(_newleaf);
+      uint256 _recipient = 0;
     }
 }

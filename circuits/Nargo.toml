@@ -1,0 +1,8 @@
+[package]
+name = "wakestake"
+type = "bin"
+authors = ["Jim Jim Valkema", "Emmy Lymphoma"]
+
+[dependencies]
+binary_merkle_root = { git = "https://github.com/zk-kit/zk-kit.noir", tag = "binary-merkle-root-v0.0.2", directory = "packages/binary-merkle-root" }
+poseidon = { git = "https://github.com/noir-lang/poseidon", tag = "v0.3.0" }
