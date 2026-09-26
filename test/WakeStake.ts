@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 
 import { Noir, type CompiledCircuit } from "@noir-lang/noir_js";
 import { network } from "hardhat";
-import type { Address } from "viem";
+import { zeroAddress, type Address } from "viem";
 
 import WakeStakeModule from "../ignition/modules/WakeStake.js";
 import {
@@ -51,15 +51,18 @@ describe("WakeStake", async function () {
     const token = await viem.deployContract("MockERC20", ["Mock", "MCK"]);
     await token.write.mint([owner.account.address, STAKE_AMOUNT]);
     await token.write.approve([wakeStake.address, STAKE_AMOUNT], { account: owner.account });
-    return { wakeStake, verifier, token };
+    // deployed here, since loadFixture reverts anything deployed before it
+    const group = await viem.deployContract("MockDonationAddressProvider", [charity.account.address]);
+    return { wakeStake, verifier, token, group };
   }
 
-  async function setup() {
-    const { wakeStake, verifier, token } = await networkHelpers.loadFixture(deployFixture);
+  /** @param donateToGroup commit the stake to the mock group contract instead of the charity wallet */
+  async function setup({ donateToGroup = false } = {}) {
+    const { wakeStake, verifier, token, group } = await networkHelpers.loadFixture(deployFixture);
     const stakeDetails: StakeDetails = {
       token: addressToField(token.address),
       amount: STAKE_AMOUNT,
-      donationAddress: addressToField(charity.account.address),
+      donationAddress: addressToField(donateToGroup ? group.address : charity.account.address),
     };
 
     async function syncMerkleTree() {
@@ -146,6 +149,7 @@ describe("WakeStake", async function () {
       wakeStake,
       verifier,
       token,
+      group,
       stakeDetails,
       syncMerkleTree,
       nextTimestampWindow,
@@ -289,11 +293,66 @@ describe("WakeStake", async function () {
     );
 
     // so they send the stake to the charity, and the fee goes to the fee payout address
-    await withdraw(groupMemberView, charity.account.address, groupMember.account);
+    await viem.assertions.emitWithArgs(
+      withdraw(groupMemberView, charity.account.address, groupMember.account),
+      wakeStake,
+      "YouLose",
+      [charity.account.address, charity.account.address, token.address, STAKE_AMOUNT - LOSE_FEE],
+    );
 
     assert.equal(await token.read.balanceOf([wakeStake.address]), 0n);
     assert.equal(await token.read.balanceOf([charity.account.address]), STAKE_AMOUNT - LOSE_FEE);
     assert.equal(await token.read.balanceOf([feeCollector.account.address]), LOSE_FEE);
+  });
+
+  describe("lost stake committed to a group contract", function () {
+    /**
+     * Stakes with the mock group as the donation address, lets `configureGroup` change what its
+     * donationAddress() does, oversleeps, and a group member withdraws.
+     */
+    async function loseStakeToGroup(
+      expectedDonationAddress: "charity" | "group",
+      configureGroup: (group: Awaited<ReturnType<typeof setup>>["group"]) => Promise<unknown> = async () => {},
+    ) {
+      const { wakeStake, token, group, stake, withdraw } = await setup({ donateToGroup: true });
+      await configureGroup(group);
+      const stakedNote = await stake(DAY);
+      await networkHelpers.time.increase(DAY + HOUR);
+      await viem.assertions.emitWithArgs(
+        withdraw({ note: stakedNote.note, secret: 0n }, group.address, groupMember.account),
+        wakeStake,
+        "YouLose",
+        [
+          expectedDonationAddress === "charity" ? charity.account.address : group.address,
+          group.address,
+          token.address,
+          STAKE_AMOUNT - LOSE_FEE,
+        ],
+      );
+      assert.equal(await token.read.balanceOf([wakeStake.address]), 0n);
+      assert.equal(await token.read.balanceOf([feeCollector.account.address]), LOSE_FEE);
+      return { wakeStake, token, group };
+    }
+
+    it("pays the group's donationAddress() directly", async function () {
+      const { wakeStake, token, group } = await loseStakeToGroup("charity");
+
+      assert.equal(await token.read.balanceOf([charity.account.address]), STAKE_AMOUNT - LOSE_FEE);
+      assert.equal(await token.read.balanceOf([group.address]), 0n);
+      assert.equal(
+        (await wakeStake.read.getLoserDonationAddress([group.address])).toLowerCase(),
+        charity.account.address.toLowerCase(),
+      );
+    });
+
+    it("pays the group itself when donationAddress() returns zero", async function () {
+      const { token, group } = await loseStakeToGroup("group", (group) =>
+        group.write.setDonationAddress([zeroAddress]),
+      );
+
+      assert.equal(await token.read.balanceOf([group.address]), STAKE_AMOUNT - LOSE_FEE);
+      assert.equal(await token.read.balanceOf([charity.account.address]), 0n);
+    });
   });
 
   it("only the contract owner can change the fee payout address", async function () {
