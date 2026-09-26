@@ -10,7 +10,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aztec/bb.js": "5.0.0-nightly.20260525"
+    "@aztec/bb.js": "5.0.0-nightly.20260525",
+    "@zk-kit/lean-imt": "^2.2.5",
+    "@zk-kit/lean-imt.sol": "^2.0.1",
+    "poseidon-solidity": "0.0.5"
   },
   "type": "module",
   "devDependencies": {
