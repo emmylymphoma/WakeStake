@@ -10,8 +10,32 @@ export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 
 export interface Profile {
   displayName: string;
-  /** X/Twitter handle without the leading "@". */
+  /** X/Twitter handle without the leading "@". Empty when no X account is linked. */
   handle: string;
+}
+
+export interface XAccount {
+  handle: string;
+  connectedAt: string;
+}
+
+/** statementId → score from -2 (hate it) to +2 (love it). */
+export type QuestionnaireAnswers = Record<string, number>;
+
+/**
+ * What WakeStake uses to pick a charity you'd hate. The user never picks the charity;
+ * they only choose how we get to know them.
+ */
+export type BeneficiarySource =
+  | { kind: 'x'; account: XAccount }
+  | { kind: 'questionnaire'; answers: QuestionnaireAnswers; completedAt: string };
+
+/** The charity picked for one morning, plus why. Revealed once, right before the first illegal snooze. */
+export interface CharityPick {
+  charity: Charity;
+  basis: BeneficiarySource['kind'];
+  reasons: string[];
+  analyzedAt: string;
 }
 
 export interface Wallet {
@@ -32,18 +56,20 @@ export interface StakeConfig {
   amount: Cents;
   /** Base penalty for a single snooze. */
   penaltyPerSnooze: Cents;
-  /** Snoozes per alarm that cost nothing. The last free one comes with a warning. */
-  freeSnoozes: number;
   /** If true, each extra paid snooze in the same alarm session doubles the penalty. */
   escalating: boolean;
 }
 
 export interface AlarmConfig {
-  /** 24h "HH:MM". */
-  time: string;
+  /** 24h "HH:MM" — when you actually have to be up. Snoozing from here on costs money. */
+  wakeBy: string;
+  /**
+   * Free 5-minute snoozes. The alarm first rings this many snoozes *before* `wakeBy`,
+   * so the last legal snooze ends exactly at `wakeBy`.
+   */
+  legalSnoozes: number;
   days: Weekday[];
   label: string;
-  snoozeMinutes: number;
 }
 
 export interface Stats {
@@ -114,10 +140,12 @@ export interface AlarmSession {
   lost: Cents;
   /** Set while snoozed: when the alarm rings again. Null while ringing. */
   snoozedUntil: string | null;
+  /** This morning's charity, picked at the first illegal snooze. Null until then. */
+  pick: CharityPick | null;
 }
 
 export interface AppState {
-  version: 1;
+  version: 2;
   onboarded: boolean;
   profile: Profile;
   wallet: Wallet | null;
@@ -125,7 +153,7 @@ export interface AppState {
   /** Stake still locked (what you can still lose). */
   balance: Cents;
   alarm: AlarmConfig;
-  charity: Charity | null;
+  beneficiary: BeneficiarySource | null;
   /** Null until the bathroom QR is set up; then "I'm up" requires scanning it. */
   wakeCode: WakeCode | null;
   stats: Stats;

@@ -8,7 +8,8 @@ import { useAppState } from '../state/AppStateContext';
 
 const HOW_IT_WORKS = [
   { icon: '🔒', title: 'Lock a stake', body: 'Put real money behind your alarm.' },
-  { icon: '😴', title: 'Snooze = pay', body: 'Every snooze slashes your stake to charity.' },
+  { icon: '😴', title: 'Snooze late = pay', body: 'Snooze past your wake-up time and your stake goes to charity.' },
+  { icon: '😈', title: 'Not your charity', body: 'We pick one you’d hate funding. You find out at the worst moment.' },
   { icon: '📣', title: 'Get roasted', body: 'We post your failure on X. Publicly.' },
 ];
 
@@ -16,13 +17,10 @@ export function WelcomeScreen() {
   const { state, dispatch } = useAppState();
   const { navigate } = useNavigation();
   const [displayName, setDisplayName] = useState(state.profile.displayName);
-  const [handle, setHandle] = useState(state.profile.handle);
-
-  const cleanHandle = handle.replace(/^@/, '').trim();
-  const ready = displayName.trim().length > 0 && cleanHandle.length > 0;
+  const ready = displayName.trim().length > 0;
 
   const start = () => {
-    dispatch({ type: 'SET_PROFILE', profile: { displayName: displayName.trim(), handle: cleanHandle } });
+    dispatch({ type: 'SET_PROFILE', profile: { ...state.profile, displayName: displayName.trim() } });
     navigate({ name: 'stakeSetup' });
   };
 
@@ -45,7 +43,7 @@ export function WelcomeScreen() {
           <span className="text-danger">U Lose.</span>
         </h1>
         <p className="hero-sub">
-          The alarm clock that charges you for hitting snooze. Your losses go to charity. Your dignity goes to X.
+          The alarm clock that charges you for snoozing past your wake-up time. Your money goes to a cause you hate. Your dignity goes to X.
         </p>
       </div>
 
@@ -72,19 +70,6 @@ export function WelcomeScreen() {
             autoComplete="name"
             onChange={(e) => setDisplayName(e.target.value)}
           />
-        </Field>
-        <Field label="Your X handle" hint="So the shame lands in the right place.">
-          <div className="input-prefix">
-            <span>@</span>
-            <input
-              className="input"
-              placeholder="snoozelord"
-              value={handle}
-              autoCapitalize="none"
-              autoCorrect="off"
-              onChange={(e) => setHandle(e.target.value)}
-            />
-          </div>
         </Field>
       </div>
       <span className="sr-only">{SLOGAN}</span>

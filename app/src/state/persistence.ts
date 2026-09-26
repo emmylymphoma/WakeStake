@@ -1,7 +1,8 @@
 import { createInitialState } from '../domain/defaults';
 import type { AppState } from '../domain/types';
 
-const KEY = 'wakestake:v1';
+/** Bumped whenever the saved shape changes incompatibly; old demo data is discarded. */
+const KEY = 'wakestake:v2';
 
 /** Storage can be blocked (private mode, sandboxed iframes) — the app must still work. */
 export function loadState(): AppState {
@@ -9,15 +10,15 @@ export function loadState(): AppState {
     const raw = localStorage.getItem(KEY);
     if (!raw) return createInitialState();
     const parsed = JSON.parse(raw) as Partial<AppState>;
-    if (parsed.version !== 1) return createInitialState();
+    if (parsed.version !== 2) return createInitialState();
     const defaults = createInitialState();
     // Shallow-merge nested objects too, so fields added later get defaults on old saves.
     return {
       ...defaults,
       ...parsed,
       stake: { ...defaults.stake, ...parsed.stake },
+      alarm: { ...defaults.alarm, ...parsed.alarm },
       stats: { ...defaults.stats, ...parsed.stats },
-      session: parsed.session ? { ...parsed.session, snoozedUntil: parsed.session.snoozedUntil ?? null } : null,
     } as AppState;
   } catch {
     return createInitialState();

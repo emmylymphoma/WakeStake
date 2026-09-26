@@ -67,7 +67,12 @@ export function AlarmScreen() {
           {snoozes > 0 ? <span className="pill">Snoozed {snoozes}× already</span> : null}
         </div>
       </div>
-      <SnoozeWarning quote={quote} escalating={state.stake.escalating} />
+      <SnoozeWarning
+          quote={quote}
+          escalating={state.stake.escalating}
+          wakeBy={state.alarm.wakeBy}
+          pick={state.session?.pick ?? null}
+        />
     </Screen>
   );
 }

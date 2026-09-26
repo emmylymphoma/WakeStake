@@ -33,7 +33,7 @@ export function ReceiptScreen({ eventId }: { eventId: string }) {
   const rows: [string, string][] = [
     ['Receipt', r.receiptId],
     ['Issued', new Date(r.issuedAt).toLocaleString()],
-    ['Offender', `@${state.profile.handle}`],
+    ['Offender', state.profile.handle ? `@${state.profile.handle}` : state.profile.displayName],
     ['Wallet', short(r.walletAddress, 4)],
     ['Snooze #', String(r.snoozeNumber)],
     ['Beneficiary', r.charityName],

@@ -2,20 +2,39 @@ import { writeFileSync } from 'node:fs';
 import { expect, type Page } from '@playwright/test';
 import QRCode from 'qrcode';
 
+export type OnboardVia = { x: string } | { questionnaire: Record<string, 'Hate it' | 'Nah' | 'Fine' | 'Love it'> };
+
 /** Walks through onboarding. Returns the path of the downloaded bathroom QR PNG. */
-export async function onboard(page: Page, downloadDir: string): Promise<string> {
+export async function onboard(page: Page, downloadDir: string, via: OnboardVia = { x: 'emmysleeps' }): Promise<string> {
   await page.goto('/');
   await page.getByPlaceholder('Sleepy McSnoozeface').fill('Emmy');
-  await page.getByPlaceholder('snoozelord').fill('@emmysleeps');
   await page.getByRole('button', { name: /Put money on it/ }).click();
 
   await page.getByRole('button', { name: 'Connect wallet' }).click();
   await page.getByRole('button', { name: 'Lock $50' }).click();
 
-  await expect(page.getByText('When does the pain start?')).toBeVisible();
+  // Defaults: be up by 7:00 with 2 legal snoozes → alarm starts at 6:50.
+  await expect(page.getByText('What time do you actually need to be up?')).toBeVisible();
+  const timeline = page.getByRole('list', { name: 'Your morning' });
+  await expect(timeline).toContainText('6:50 AM');
+  await expect(timeline).toContainText('6:55 AMLast legal snooze');
+  await expect(timeline).toContainText('7:00 AMBe up. Snoozing now costs money');
   await page.getByRole('button', { name: 'Arm the alarm' }).click();
 
-  await page.getByRole('radio', { name: /Against Malaria Foundation/ }).click();
+  await expect(page.getByText('Who gets your money? Not your call.')).toBeVisible();
+  if ('x' in via) {
+    await page.getByRole('button', { name: 'Connect X account' }).click();
+    await page.getByRole('dialog').getByPlaceholder('snoozelord').fill(via.x);
+    await page.getByRole('button', { name: 'Authorize app' }).click();
+    await expect(page.getByText(`✓ Connected as @${via.x}`)).toBeVisible();
+  } else {
+    await page.getByRole('button', { name: 'Take the questionnaire' }).click();
+    for (const [statement, answer] of Object.entries(via.questionnaire)) {
+      await page.getByRole('radiogroup', { name: statement }).getByRole('radio', { name: answer }).click();
+    }
+    await page.getByRole('button', { name: 'Lock in my answers' }).click();
+    await expect(page.getByText('✓ Questionnaire done')).toBeVisible();
+  }
   await page.getByRole('button', { name: /Next: bathroom QR/ }).click();
 
   await expect(page.getByAltText('Your bathroom wake-up QR code')).toBeVisible();
@@ -27,6 +46,15 @@ export async function onboard(page: Page, downloadDir: string): Promise<string> 
   await page.getByRole('button', { name: /on the wall/ }).click();
   await expect(page.getByText('Stake at risk')).toBeVisible();
   return qrPath;
+}
+
+/** Uses both legal snoozes (6:50 and 6:55 rings) so the next ring is the 7:00 one. */
+export async function useLegalSnoozes(page: Page) {
+  await page.getByRole('button', { name: /Ring alarm now/ }).click();
+  await page.getByRole('button', { name: 'Snooze · free (1 left after)' }).click();
+  await page.getByRole('button', { name: /Skip ahead · ring now/ }).click();
+  await page.getByRole('button', { name: 'Snooze · last free one' }).click();
+  await page.getByRole('button', { name: /Skip ahead · ring now/ }).click();
 }
 
 export async function writeQrPng(path: string, text: string): Promise<string> {

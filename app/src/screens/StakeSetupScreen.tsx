@@ -14,12 +14,6 @@ const AMOUNTS = [10, 25, 50, 100].map((d) => ({
   hint: d === 10 ? 'Coward' : d === 25 ? 'Casual' : d === 50 ? 'Serious' : 'Psycho',
 }));
 const PENALTIES = [1, 2, 5, 10].map((d) => ({ value: dollars(d), label: `$${d}` }));
-const FREE_SNOOZES = [
-  { value: 0, label: '0', hint: 'Hardcore' },
-  { value: 1, label: '1', hint: 'Strict' },
-  { value: 2, label: '2', hint: 'Human' },
-  { value: 3, label: '3', hint: 'Soft' },
-];
 
 const shortAddress = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
@@ -32,13 +26,13 @@ export function StakeSetupScreen() {
   const [amount, setAmount] = useState(state.stake.amount);
   const [penalty, setPenalty] = useState(state.stake.penaltyPerSnooze);
   const [escalating, setEscalating] = useState(state.stake.escalating);
-  const [freeSnoozes, setFreeSnoozes] = useState(state.stake.freeSnoozes);
   const [connecting, setConnecting] = useState(false);
   const [locking, setLocking] = useState(false);
 
   const effectivePenalty = Math.min(penalty, amount);
-  const stake = { amount, penaltyPerSnooze: effectivePenalty, freeSnoozes, escalating };
-  const ladder = Array.from({ length: freeSnoozes + 3 }, (_, i) => quotePenalty(stake, amount, i));
+  const stake = { amount, penaltyPerSnooze: effectivePenalty, escalating };
+  // Paid snoozes only — legal snoozes are set with the alarm.
+  const ladder = Array.from({ length: 4 }, (_, i) => quotePenalty(stake, amount, i, 0));
 
   const connect = async () => {
     setConnecting(true);
@@ -96,18 +90,8 @@ export function StakeSetupScreen() {
       </section>
 
       <section className="stack-sm">
-        <h3 className="section-title">Penalty per snooze</h3>
-        <ChipGroup label="Penalty per snooze" options={PENALTIES} value={penalty} onChange={setPenalty} />
-      </section>
-
-      <section className="stack-sm">
-        <h3 className="section-title">Free snoozes per alarm</h3>
-        <ChipGroup label="Free snoozes per alarm" options={FREE_SNOOZES} value={freeSnoozes} onChange={setFreeSnoozes} />
-        <p className="muted small">
-          {freeSnoozes === 0
-            ? 'No mercy. The very first snooze costs money.'
-            : `The ${freeSnoozes === 1 ? 'first' : `first ${freeSnoozes}`} cost nothing. On the last free one, the alarm warns you that the next snooze starts charging.`}
-        </p>
+        <h3 className="section-title">Penalty per late snooze</h3>
+        <ChipGroup label="Penalty per late snooze" options={PENALTIES} value={penalty} onChange={setPenalty} />
       </section>
 
       <Card>
@@ -119,13 +103,9 @@ export function StakeSetupScreen() {
         />
         <div className="ladder" aria-label="Penalty per snooze">
           {ladder.map((p, i) => (
-            <div key={i} className={`ladder-step ${i === freeSnoozes - 1 ? 'ladder-step-warn' : ''}`}>
-              <span className="muted small">#{i + 1}</span>
-              {p === 0 ? (
-                <strong className="text-lime">{i === freeSnoozes - 1 ? '⚠ Free' : 'Free'}</strong>
-              ) : (
-                <strong className="text-danger">−{formatMoney(p)}</strong>
-              )}
+            <div key={i} className="ladder-step">
+              <span className="muted small">Late #{i + 1}</span>
+              <strong className="text-danger">−{formatMoney(p)}</strong>
             </div>
           ))}
         </div>

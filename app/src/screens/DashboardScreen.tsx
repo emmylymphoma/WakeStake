@@ -3,7 +3,7 @@ import { Screen } from '../components/Screen';
 import { SnoozeProgress } from '../components/SnoozeProgress';
 import { Button, Card, Eyebrow, ProgressBar, Stat } from '../components/ui';
 import { useNow } from '../components/useNow';
-import { describeDays, formatClock, formatCountdown, nextAlarmDate } from '../domain/alarm';
+import { describeDays, firstRingTime, formatClock, formatCountdown, nextAlarmDate } from '../domain/alarm';
 import { formatMoney } from '../domain/money';
 import { quoteSnooze } from '../domain/rules';
 import { routeAfterSnooze, snoozeButtonLabel } from '../flows/snoozeCopy';
@@ -19,7 +19,7 @@ export function DashboardScreen() {
   const { wake, needsScan } = useWake();
   const now = useNow(30_000);
 
-  const { stats, stake, balance, alarm, charity, session } = state;
+  const { stats, stake, balance, alarm, beneficiary, session } = state;
   const next = nextAlarmDate(alarm, now);
   const broke = balance <= 0;
   const quote = quoteSnooze(state);
@@ -91,9 +91,9 @@ export function DashboardScreen() {
         </div>
         <ProgressBar value={balance} max={stake.amount} tone={balance / stake.amount < 0.34 ? 'danger' : 'lime'} />
         <div className="muted small">
-          {stake.freeSnoozes > 0 ? `${stake.freeSnoozes} free snooze${stake.freeSnoozes === 1 ? '' : 's'}, then ` : 'Every snooze costs '}
+          Snoozing past {formatClock(alarm.wakeBy)} costs{' '}
           <strong className="text-danger">{formatMoney(stake.penaltyPerSnooze)}</strong>
-          {stake.escalating ? ' · doubling each time' : ' each'}
+          {stake.escalating ? ', doubling each time' : ' each'}
         </div>
       </Card>
 
@@ -107,7 +107,11 @@ export function DashboardScreen() {
       <Card className="alarm-card">
         <div className="grow">
           <Eyebrow>Next alarm</Eyebrow>
-          <div className="alarm-time">{formatClock(alarm.time)}</div>
+          <div className="alarm-time">{formatClock(firstRingTime(alarm))}</div>
+          <div className="muted small">
+            Be up by <strong className="text">{formatClock(alarm.wakeBy)}</strong> · {alarm.legalSnoozes} legal snooze
+            {alarm.legalSnoozes === 1 ? '' : 's'}
+          </div>
           <div className="muted small">
             {describeDays(alarm.days)} · {alarm.label}
           </div>
@@ -118,18 +122,26 @@ export function DashboardScreen() {
         </div>
       </Card>
 
-      {charity ? (
-        <Card className="charity-mini">
-          <span className="charity-emoji" aria-hidden>
-            {charity.emoji}
+      <Card className="link-card">
+        <button
+          type="button"
+          className="link-row"
+          onClick={() => navigate({ name: 'beneficiary', mode: 'manage' })}
+        >
+          <span aria-hidden>🔒</span>
+          <span className="grow">
+            <strong>Your charity: classified</strong>
+            <span className="muted small">
+              {beneficiary?.kind === 'x'
+                ? `Picked from @${beneficiary.account.handle} on X, the moment you snooze late.`
+                : beneficiary
+                  ? 'Picked from your questionnaire, the moment you snooze late.'
+                  : 'Not set up yet — tap to fix.'}
+            </span>
           </span>
-          <div className="grow">
-            <div className="muted small">Your snoozes fund</div>
-            <strong>{charity.name}</strong>
-          </div>
           <strong className="text-lime">{formatMoney(stats.totalLost)}</strong>
-        </Card>
-      ) : null}
+        </button>
+      </Card>
 
       {state.wakeCode ? (
         <Card className="link-card">

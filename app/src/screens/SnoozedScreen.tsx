@@ -60,7 +60,12 @@ export function SnoozedScreen() {
       </div>
       <div className="stack-sm">
         <h3 className="section-title">When it rings again</h3>
-        <SnoozeWarning quote={quote} escalating={state.stake.escalating} />
+        <SnoozeWarning
+          quote={quote}
+          escalating={state.stake.escalating}
+          wakeBy={state.alarm.wakeBy}
+          pick={state.session?.pick ?? null}
+        />
       </div>
     </Screen>
   );

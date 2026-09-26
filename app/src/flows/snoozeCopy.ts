@@ -17,7 +17,14 @@ export function snoozeButtonLabel(quote: SnoozeQuote, prefix = 'Snooze'): string
   }
 }
 
-/** Where to go after a snooze: paid → penalty screen, free → snoozed countdown. */
+/** Where to go after tapping snooze: free → countdown, first illegal → charity reveal, paid → penalty. */
 export function routeAfterSnooze(outcome: SnoozeOutcome): Route {
-  return outcome.kind === 'paid' ? { name: 'penalty', eventId: outcome.event.id } : { name: 'snoozed' };
+  switch (outcome.kind) {
+    case 'paid':
+      return { name: 'penalty', eventId: outcome.event.id };
+    case 'needs-reveal':
+      return { name: 'reveal' };
+    case 'free':
+      return { name: 'snoozed' };
+  }
 }

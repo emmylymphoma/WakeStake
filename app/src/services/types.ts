@@ -7,18 +7,23 @@
  *   ProofService      → on-chain receipt / Noir ZK "Proof of Snooze"
  *   CopywriterService → LLM that writes the public-shame post
  *   SocialService     → X/Twitter API
- *   CharityService    → curated charity registry
+ *   XAccountService   → X OAuth 2.0 (PKCE) login, tokens kept server-side
+ *   CharityOracleService → reads your X (or questionnaire) at snooze time, LLM picks the
+ *                       registered charity you'd hate funding most
  *   WakeVerificationService → bathroom-QR check (later: server-signed / on-chain attestation)
  */
 import type {
+  BeneficiarySource,
   Cents,
   Charity,
+  CharityPick,
   ProofOfSnooze,
   ShamePost,
   Stats,
   TxResult,
   Wallet,
   WakeCode,
+  XAccount,
 } from '../domain/types';
 import type { WakeQrMatch } from '../domain/wakeCode';
 
@@ -61,8 +66,19 @@ export interface SocialService {
   publish(post: ShamePost): Promise<{ url: string }>;
 }
 
-export interface CharityService {
-  list(): Promise<Charity[]>;
+export interface XAccountService {
+  /** Real: OAuth redirect. The mock takes the handle from a fake consent sheet. */
+  connect(opts?: { handleHint?: string }): Promise<XAccount>;
+}
+
+export type OracleStep = 'fetching' | 'analyzing' | 'matching';
+
+export interface CharityOracleService {
+  /**
+   * Analyse the user *now* (fresh X read, or their questionnaire) and pick the charity
+   * they'd hate funding most. Called right before the first illegal snooze of a morning.
+   */
+  pickCharity(source: BeneficiarySource, onProgress?: (step: OracleStep) => void): Promise<CharityPick>;
 }
 
 export type WakeVerification =
@@ -82,6 +98,7 @@ export interface Services {
   proof: ProofService;
   copywriter: CopywriterService;
   social: SocialService;
-  charities: CharityService;
+  xAccount: XAccountService;
+  charityOracle: CharityOracleService;
   wakeVerification: WakeVerificationService;
 }

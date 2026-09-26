@@ -10,21 +10,26 @@ describe('reducer + mock services', () => {
     let s = createInitialState();
 
     const wallet = await services.wallet.connect();
-    const stake = { amount: dollars(25), penaltyPerSnooze: dollars(5), freeSnoozes: 0, escalating: true };
+    const stake = { amount: dollars(25), penaltyPerSnooze: dollars(5), escalating: true };
     await services.stake.deposit(wallet, stake.amount);
     s = reducer(s, { type: 'SET_STAKE', stake, wallet });
-    const [charity] = await services.charities.list();
-    s = reducer(s, { type: 'SET_CHARITY', charity: charity! });
+    s = reducer(s, { type: 'SET_ALARM', alarm: { ...s.alarm, legalSnoozes: 0 } });
+    const account = await services.xAccount.connect({ handleHint: '@emmy' });
+    s = reducer(s, { type: 'SET_BENEFICIARY', beneficiary: { kind: 'x', account } });
+    expect(s.profile.handle).toBe('emmy');
     s = reducer(s, { type: 'COMPLETE_ONBOARDING' });
     expect(s.balance).toBe(dollars(25));
 
     s = reducer(s, { type: 'ALARM_RING', at: new Date().toISOString() });
-    const tx = await services.stake.slash({ wallet, amount: dollars(5), charity: charity! });
+    const pick = await services.charityOracle.pickCharity(s.beneficiary!);
+    s = reducer(s, { type: 'CHARITY_PICKED', pick });
+    const charity = pick.charity;
+    const tx = await services.stake.slash({ wallet, amount: dollars(5), charity });
     const receipt = await services.proof.issueReceipt({
       tx,
       wallet,
       amount: dollars(5),
-      charity: charity!,
+      charity,
       snoozeNumber: 1,
       at: '2026-09-26T07:00:00.000Z',
     });
@@ -32,7 +37,7 @@ describe('reducer + mock services', () => {
       displayName: 'A',
       handle: 'a',
       penalty: dollars(5),
-      charityName: charity!.name,
+      charityName: charity.name,
       sessionSnoozeIndex: 0,
       stats: s.stats,
     });

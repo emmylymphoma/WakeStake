@@ -1,10 +1,11 @@
-import { createMockCharityService } from './mock/mockCharities';
+import { createMockCharityOracleService } from './mock/mockCharityOracle';
 import { createMockCopywriterService } from './mock/mockCopywriter';
 import { createMockProofService } from './mock/mockProof';
 import { createMockSocialService } from './mock/mockSocial';
 import { createMockStakeService } from './mock/mockStake';
 import { createMockWakeVerificationService } from './mock/mockWakeVerification';
 import { createMockWalletService } from './mock/mockWallet';
+import { createMockXAccountService } from './mock/mockXAccount';
 import type { Services } from './types';
 
 /**
@@ -19,7 +20,8 @@ export function createMockServices({ latencyMs = 600 }: { latencyMs?: number } =
     proof: createMockProofService(latencyMs),
     copywriter: createMockCopywriterService(latencyMs),
     social: createMockSocialService(latencyMs),
-    charities: createMockCharityService(latencyMs / 2),
+    xAccount: createMockXAccountService(latencyMs),
+    charityOracle: createMockCharityOracleService(latencyMs),
     wakeVerification: createMockWakeVerificationService(latencyMs / 2),
   };
 }

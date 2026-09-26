@@ -29,10 +29,10 @@ test('live camera scan of the bathroom QR stops the alarm', async ({ page }) => 
     profile: { displayName: 'Emmy', handle: 'emmysleeps' },
     wallet: { address: '0x' + '1'.repeat(40), network: 'mock' },
     balance: initial.stake.amount,
-    charity: { id: 'amf', name: 'Against Malaria Foundation', tagline: '', emoji: '🦟', category: 'Health' },
+    beneficiary: { kind: 'x', account: { handle: 'emmysleeps', connectedAt: '2026-09-26T06:00:00.000Z' } },
     wakeCode: WAKE_CODE,
   };
-  await page.addInitScript((s) => localStorage.setItem('wakestake:v1', s), JSON.stringify(state));
+  await page.addInitScript((s) => localStorage.setItem('wakestake:v2', s), JSON.stringify(state));
 
   await page.goto('/');
   await page.getByRole('button', { name: /Ring alarm now/ }).click();
