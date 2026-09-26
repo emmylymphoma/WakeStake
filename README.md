@@ -1,6 +1,9 @@
 # WakeStake
 u snooze u lose 
 
+# mobile UI prototype
+see [app/README.md](app/README.md) — `cd app && npm install && npm run dev`
+
 
 # install zk: noir + bb
 
