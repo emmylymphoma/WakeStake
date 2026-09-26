@@ -1,0 +1,9 @@
+{
+  "WakeStakeModule#PoseidonT3": "0x36610be8557e1386B8574cb1d26Cc7bD6eC7BA10",
+  "WakeStakeModule#PoseidonT4": "0xBAdDAc8a601cD93dbdf169F0C2054913914eBBe3",
+  "WakeStakeModule#RelationsLib": "0xfaCDe124040fa0368Bc2354650C7D76a9e396BF9",
+  "WakeStakeModule#ZKTranscriptLib": "0x4465c783DF68bEbD45ebe97ce55c548730A40d22",
+  "WakeStakeModule#HonkVerifier": "0x0d2a31af11e80265C96AFFd6AcB9633d04B65Eda",
+  "WakeStakeModule#LeanIMT": "0xb1dfbA5e831024cec82166B94A83Fc948830A540",
+  "WakeStakeModule#WakeStake": "0x037bE9772a71C2953686ED6221562aa67BF14786"
+}
