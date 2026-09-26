@@ -35,8 +35,8 @@ export const LOSE_FEE = (STAKE_AMOUNT * FEE_PERCENTAGE) / 100n;
 export async function createWakeStakeTestContext() {
   const { viem, ignition, networkHelpers } = await network.create();
   const publicClient = await viem.getPublicClient();
-  // `owner` is the staker who has to wake up, `contractOwner` is WakeStake's Ownable admin,
-  // `groupAdmin` created the DonationGroup
+  // `owner` is the staker who has to wake up, `contractOwner` deployed WakeStake and owns admin.wakestake.eth,
+  // which makes it WakeStake's admin. `groupAdmin` created the DonationGroup
   const allWallets = await viem.getWalletClients();
   const [contractOwner, owner, ownerRecipient, groupMember, charity, feeCollector, newFeeCollector, groupAdmin] =
     allWallets;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { Noir } from "@noir-lang/noir_js";
-import { zeroAddress } from "viem";
+import { zeroAddress, type Address } from "viem";
 
 import { buildNoirInputMap, executeCircuit } from "../src/circuit.js";
 import { DAY, HOUR } from "../src/constants.js";
@@ -21,6 +21,8 @@ describe("WakeStake", async function () {
     setup,
     wallets: { contractOwner, owner, ownerRecipient, groupMember, charity, feeCollector, newFeeCollector },
   } = await createWakeStakeTestContext();
+
+  const sameAddress = (actual: Address, expected: Address) => assert.equal(actual.toLowerCase(), expected.toLowerCase());
 
   it("stake, then withdraw on time", async function () {
     const { wakeStake, token, stake, withdraw } = await setup();
@@ -223,20 +225,17 @@ describe("WakeStake", async function () {
     });
   });
 
-  it("only the contract owner can change the fee payout address", async function () {
-    const { wakeStake } = await setup();
+  it("only the admin can change the fee payout address", async function () {
+    const { wakeStake, wakeStakeRegistry } = await setup();
 
-    assert.equal(
-      (await wakeStake.read.owner()).toLowerCase(),
-      contractOwner.account.address.toLowerCase(),
-    );
-    await viem.assertions.revertWithCustomErrorWithArgs(
+    // the deployer registered admin.wakestake.eth to itself
+    sameAddress(await wakeStakeRegistry.read.findOwner(["admin"]), contractOwner.account.address);
+    sameAddress(await wakeStake.read.admin(), contractOwner.account.address);
+    await viem.assertions.revertWith(
       wakeStake.write.setFeePayoutAddress([newFeeCollector.account.address], {
         account: owner.account,
       }),
-      wakeStake,
-      "OwnableUnauthorizedAccount",
-      [owner.account.address],
+      "only the admin can change the fee payout address",
     );
 
     await viem.assertions.emitWithArgs(
@@ -247,9 +246,42 @@ describe("WakeStake", async function () {
       "FeePayoutAddressChanged",
       [newFeeCollector.account.address],
     );
-    assert.equal(
-      (await wakeStake.read.feePayoutAddress()).toLowerCase(),
-      newFeeCollector.account.address.toLowerCase(),
+    sameAddress(await wakeStake.read.feePayoutAddress(), newFeeCollector.account.address);
+  });
+
+  it("admin is whoever owns admin.wakestake.eth, so transferring the name hands over admin", async function () {
+    const { wakeStake, wakeStakeRegistry } = await setup();
+    const adminTokenId = await wakeStakeRegistry.read.findTokenId(["admin"]);
+
+    // the deployer keeps root roles (e.g. unregister) on the wakestake.eth registry, so it isn't emancipated
+    // and ENS refuses safeTransferFrom there. unsafeTransfer moves the name and its roles all the same.
+    await viem.assertions.revertWithCustomError(
+      wakeStakeRegistry.write.safeTransferFrom(
+        [contractOwner.account.address, owner.account.address, adminTokenId, 1n, "0x"],
+        { account: contractOwner.account },
+      ),
+      wakeStakeRegistry,
+      "TransferUnsafeUntilRegistryIsEmancipated",
     );
+    await wakeStakeRegistry.write.unsafeTransfer([owner.account.address, adminTokenId, "0x"], {
+      account: contractOwner.account,
+    });
+
+    sameAddress(await wakeStake.read.admin(), owner.account.address);
+    await viem.assertions.revertWith(
+      wakeStake.write.setFeePayoutAddress([newFeeCollector.account.address], {
+        account: contractOwner.account,
+      }),
+      "only the admin can change the fee payout address",
+    );
+    await viem.assertions.emitWithArgs(
+      wakeStake.write.setFeePayoutAddress([newFeeCollector.account.address], {
+        account: owner.account,
+      }),
+      wakeStake,
+      "FeePayoutAddressChanged",
+      [newFeeCollector.account.address],
+    );
+    sameAddress(await wakeStake.read.feePayoutAddress(), newFeeCollector.account.address);
   });
 });

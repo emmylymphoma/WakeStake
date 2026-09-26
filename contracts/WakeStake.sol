@@ -5,17 +5,22 @@ import {LeanIMT, LeanIMTData} from "@zk-kit/lean-imt.sol/LeanIMT.sol";
 import {PoseidonT4} from "poseidon-solidity/PoseidonT4.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IPermissionedRegistry} from "@ensdomains/contracts-v2/registry/interfaces/IPermissionedRegistry.sol";
 import {IDonationAddressProvider} from "./interfaces/IDonationAddressProvider.sol";
 import {IWakeStakeVerifier} from "./interfaces/IWakeStakeVerifier.sol";
 import {IWakeStake} from "./interfaces/IWakeStake.sol";
 
-/// @dev `owner()` (from Ownable) is the contract admin, not a staker
-contract WakeStake is Ownable, IWakeStake {
+/// @dev `admin()` is the contract admin, not a staker. Like DonationGroup, admin is an ENSv2 name, not Ownable.
+contract WakeStake is IWakeStake {
     using LeanIMT for LeanIMTData;
     using SafeERC20 for IERC20;
 
+    /// @notice whoever owns `admin.wakestake.eth` is the contract admin
+    string public constant ADMIN_LABEL = "admin";
+
     IWakeStakeVerifier public immutable verifier;
+    /// @notice the ENSv2 registry of `*.wakestake.eth`, where `admin.wakestake.eth` lives
+    IPermissionedRegistry public immutable registry;
 
     /// @notice percentage (0-100) taken from a stake when the owner woke up too late
     uint256 public immutable feePercentage;
@@ -37,19 +42,29 @@ contract WakeStake is Ownable, IWakeStake {
 
     /**
      * @param _verifier HonkVerifier from WakeStakeVerifier.sol
-     * @param _owner the only account that can change the fee payout address
-     * @param _feePayoutAddress receives the fee on losing withdraws, owner can change it later
+     * @param _registry the ENSv2 registry of wakestake.eth. The deployer registers `admin.wakestake.eth` in it,
+     * see ignition/modules/WakeStake.ts
+     * @param _feePayoutAddress receives the fee on losing withdraws, the admin can change it later
      * @param _feePercentage percentage (0-100) taken from a stake when the owner woke up too late
      */
-    constructor(address _verifier, address _owner, address _feePayoutAddress, uint256 _feePercentage) Ownable(_owner) {
+    constructor(address _verifier, IPermissionedRegistry _registry, address _feePayoutAddress, uint256 _feePercentage) {
       require(_feePayoutAddress != address(0), "fee payout address cannot be zero");
       require(_feePercentage <= 100, "fee percentage cannot be above 100");
       verifier = IWakeStakeVerifier(_verifier);
+      registry = _registry;
       feePayoutAddress = _feePayoutAddress;
       feePercentage = _feePercentage;
     }
 
-    function setFeePayoutAddress(address _feePayoutAddress) external onlyOwner {
+    /// @notice the owner of `admin.wakestake.eth`, the only account that can change the fee payout address.
+    /// Transferring the name hands over admin. The deployer keeps root roles on the registry (it isn't
+    /// emancipated), so use the registry's `unsafeTransfer`, `safeTransferFrom` reverts there.
+    function admin() public view returns (address) {
+      return registry.findOwner(ADMIN_LABEL);
+    }
+
+    function setFeePayoutAddress(address _feePayoutAddress) external {
+      require(msg.sender == admin(), "only the admin can change the fee payout address");
       require(_feePayoutAddress != address(0), "fee payout address cannot be zero");
       feePayoutAddress = _feePayoutAddress;
       emit FeePayoutAddressChanged(_feePayoutAddress);

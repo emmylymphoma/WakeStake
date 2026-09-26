@@ -48,7 +48,7 @@ describe("DonationGroupFactory", async function () {
       sameAddress(await groupRegistry.read.findOwner(["admin"]), groupAdmin.account.address);
       assert.equal(
         await groupRegistry.read.roles([labelId("admin"), groupAdmin.account.address]),
-        await donationGroup.read.ADMIN_NAME_ROLES(),
+        await donationGroup.read.NAME_ROLES(),
       );
     });
 

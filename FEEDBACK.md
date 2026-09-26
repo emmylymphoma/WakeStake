@@ -29,3 +29,8 @@ Also needed to create: contracts/ens/EnsV2.sol which a ugly hack to get hardhat 
 - `LabelStore` pulls in ens-contracts (v1) just for `NameCoder`, and the npm `@ensdomains/ens-contracts` package can't
   replace it, because contracts-v2 remaps `@ens/contracts` to its submodule.
 
+
+## admin role usecase (positive)
+Bit late in the night but i now realize that this is a great usecase for ens V2. Everyone rn uses openzeppelin for admin roles and such which is confusing af to look at. You have to have some hash of a role, then look up a mapping just to see which eoa might rug all your funds of a contract you wanted to use. 
+But if you let ens do it. You can make it easily transferable roles and you can just look up subdomains on the ens ui and have pretty good idea what is going on!
+You could built that with V1 but then you have sort of standard ish wrapper tokens and non standard registrars or other hacks. Practically achieves the same but not great ux and non standard

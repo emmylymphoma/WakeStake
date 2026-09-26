@@ -68,7 +68,8 @@ pnpm hardhat ignition deploy ignition/modules/WakeStake.ts --network sepolia --p
 addresses end up in `ignition/deployments/chain-11155111`. rerun the same command to resume a failed deploy.
 if only verification failed, retry it with `pnpm hardhat ignition verify chain-11155111`.
 
-`ignition/parameters.json` sets the contract `owner` (only account that can change the fee payout address), `feePayoutAddress` and `feePercentage`. anything left out defaults to the deployer and 5%.
+`ignition/parameters.json` sets the contract `admin`, `feePayoutAddress` and `feePercentage`. anything left out defaults to the deployer and 5%.
+the deployer registers `admin.wakestake.eth` to `admin`, and whoever owns that name is the only account that can change the fee payout address (same as `admin.<group>.wakestake.eth` for a donation group). transfer the name to hand over admin, with the registry's `unsafeTransfer`: the deployer keeps root roles on the wakestake.eth registry, so ENS refuses `safeTransferFrom` there.
 after changing the circuit or contracts, redeploy with `--reset` (or a new `--deployment-id`), otherwise ignition refuses because the old deployment doesn't match.
 
 # setup github

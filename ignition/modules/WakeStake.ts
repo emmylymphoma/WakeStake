@@ -1,7 +1,13 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
-import { hexToBigInt, labelhash } from "viem";
+import { hexToBigInt, labelhash, zeroAddress } from "viem";
 
 import { ENS_ROLES, ENS_ROOT_LABEL, ENS_SEPOLIA } from "../../src/constants.js";
+
+/** WakeStake.ADMIN_LABEL: whoever owns admin.wakestake.eth is WakeStake's admin */
+const ADMIN_LABEL = "admin";
+/** same roles as DonationGroup.NAME_ROLES: transferable, and free to set its own resolver */
+const ADMIN_NAME_ROLES = ENS_ROLES.CAN_TRANSFER_ADMIN | ENS_ROLES.SET_RESOLVER | ENS_ROLES.SET_RESOLVER_ADMIN;
+const NEVER_EXPIRES = 2n ** 64n - 1n;
 
 export default buildModule("WakeStakeModule", (m) => {
   // LeanIMT hashes tree nodes with PoseidonT3, WakeStake hashes leaves with PoseidonT4.
@@ -27,13 +33,9 @@ export default buildModule("WakeStakeModule", (m) => {
   });
 
   // set in ignition/parameters.json, defaults to the deployer (account 0) and 5%
-  const owner = m.getParameter("owner", m.getAccount(0));
+  const admin = m.getParameter("admin", m.getAccount(0));
   const feePayoutAddress = m.getParameter("feePayoutAddress", m.getAccount(0));
   const feePercentage = m.getParameter("feePercentage", 5n);
-
-  const wakeStake = m.contract("WakeStake", [verifier, owner, feePayoutAddress, feePercentage], {
-    libraries: { LeanIMT: leanIMT, PoseidonT4: poseidonT4 },
-  });
 
   // ENSv2: defaults to ENS's Sepolia deployment, tests pass locally deployed ones (see contracts/ens/EnsV2.sol)
   const verifiableFactory = m.contractAt(
@@ -59,6 +61,19 @@ export default buildModule("WakeStakeModule", (m) => {
     m.readEventArgument(deployWakeStakeRegistry, "ProxyDeployed", "proxyAddress"),
     { id: "WakeStakeRegistry" },
   );
+
+  // admin.wakestake.eth makes its owner WakeStake's admin, like admin.<group>.wakestake.eth does for a group.
+  // Registered by the deployer, who holds ROLE_REGISTRAR on the registry. Transfer the name to hand over admin.
+  m.call(
+    wakeStakeRegistry,
+    "register",
+    [ADMIN_LABEL, admin, zeroAddress, zeroAddress, ADMIN_NAME_ROLES, NEVER_EXPIRES],
+    { id: "RegisterAdminName" },
+  );
+
+  const wakeStake = m.contract("WakeStake", [verifier, wakeStakeRegistry, feePayoutAddress, feePercentage], {
+    libraries: { LeanIMT: leanIMT, PoseidonT4: poseidonT4 },
+  });
 
   const donationGroupFactory = m.contract("DonationGroupFactory", [
     wakeStake,

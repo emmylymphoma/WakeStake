@@ -38,6 +38,8 @@ export const ENS_ROLES = {
   RENEW: 1n << 16n,
   SET_SUBREGISTRY: 1n << 20n,
   SET_RESOLVER: 1n << 24n,
+  /** can grant SET_RESOLVER on the name to others */
+  SET_RESOLVER_ADMIN: (1n << 24n) << 128n,
   UNREGISTER: 1n << 12n,
   SET_PARENT: 1n << 8n,
   /** only ever an admin role: whoever holds it on a name can transfer that name */

@@ -88,31 +88,64 @@ describe("DonationGroup", async function () {
     });
   });
 
-  it("admin adds a member, who registers a name and votes with a real proof", async function () {
-    const { donationGroup, publicValues, proof } = await stakeToGroupAndProve();
+
+  const nameId = (name: string) => hexToBigInt(labelhash(name));
+  const PERMANENT = 2n ** 64n - 1n;
+
+  it("admin adds a member, who registers <name>.<label>.wakestake.eth and votes with it", async function () {
+    const { donationGroup, groupRegistry, publicValues, proof } = await stakeToGroupAndProve();
     const { root, nullifier } = publicValues;
 
-    assert.equal((await donationGroup.read.admin()).toLowerCase(), groupAdmin.account.address.toLowerCase());
     await viem.assertions.emitWithArgs(
       donationGroup.write.addMember([owner.account.address], { account: groupAdmin.account }),
       donationGroup,
       "MemberAdded",
       [owner.account.address],
     );
-
     await viem.assertions.emitWithArgs(
       donationGroup.write.registerName(["alice", root, nullifier, proof], { account: owner.account }),
       donationGroup,
       "NewMember",
       [owner.account.address, "alice"],
     );
-    // voting uses the same kind of proof
+
+    // a real ENSv2 name in the group's registry: permanent, transferable, with its own resolver rights
+    sameAddress(await groupRegistry.read.findOwner(["alice"]), owner.account.address);
+    assert.equal(await groupRegistry.read.findExpiry(["alice"]), PERMANENT);
+    assert.equal(
+      await groupRegistry.read.roles([nameId("alice"), owner.account.address]),
+      await donationGroup.read.NAME_ROLES(),
+    );
+    assert.equal(await donationGroup.read.isMemberName([nameId("alice")]), true);
+    assert.equal(await donationGroup.read.memberCount(), 1n);
+
+    // voting uses the same kind of proof, and the name
     await viem.assertions.emitWithArgs(
-      donationGroup.write.voteDonationAddress([charity.account.address, root, nullifier, proof], { account: owner.account }),
+      donationGroup.write.voteDonationAddress(["alice", charity.account.address, root, nullifier, proof], {
+        account: owner.account,
+      }),
       donationGroup,
       "DonationAddressVoted",
-      [owner.account.address, charity.account.address, 1n],
+      [owner.account.address, "alice", charity.account.address, 1n],
     );
+  });
+
+  it("registers one name per member, and rejects taken names like admin", async function () {
+    const { donationGroup, groupRegistry, publicValues, proof } = await stakeToGroupAndProve();
+    const proofArgs = [publicValues.root, publicValues.nullifier, proof] as const;
+    await donationGroup.write.addMember([owner.account.address], { account: groupAdmin.account });
+
+    await viem.assertions.revertWithCustomError(
+      donationGroup.write.registerName(["admin", ...proofArgs], { account: owner.account }),
+      groupRegistry,
+      "LabelAlreadyRegistered",
+    );
+    await donationGroup.write.registerName(["alice", ...proofArgs], { account: owner.account });
+    await viem.assertions.revertWith(
+      donationGroup.write.registerName(["alice2", ...proofArgs], { account: owner.account }),
+      "already registered a name",
+    );
+    assert.equal(await donationGroup.read.memberCount(), 1n);
   });
 
   it("only the group admin can add members, not the WakeStake deployer", async function () {
@@ -129,7 +162,6 @@ describe("DonationGroup", async function () {
 
   it("admin is whoever owns admin.<label>.wakestake.eth, so transferring the name hands over admin", async function () {
     const { donationGroup, groupRegistry } = await setup();
-    const adminLabelId = hexToBigInt(labelhash("admin"));
     const adminTokenId = await groupRegistry.read.findTokenId(["admin"]);
 
     // a plain ERC1155 transfer of the ENS name, allowed because the name has ROLE_CAN_TRANSFER_ADMIN
@@ -142,7 +174,7 @@ describe("DonationGroup", async function () {
     // the name's Enhanced Access Control roles moved with it
     for (const [account, hasRole] of [[groupMember, true], [groupAdmin, false]] as const) {
       assert.equal(
-        await groupRegistry.read.hasRoles([adminLabelId, ENS_ROLES.CAN_TRANSFER_ADMIN, account.account.address]),
+        await groupRegistry.read.hasRoles([nameId("admin"), ENS_ROLES.CAN_TRANSFER_ADMIN, account.account.address]),
         hasRole,
       );
     }
@@ -183,7 +215,7 @@ describe("DonationGroup", async function () {
 
     await donationGroup.write.addMember([owner.account.address], { account: groupAdmin.account });
     await viem.assertions.revertWith(
-      donationGroup.write.voteDonationAddress([charity.account.address, root + 1n, nullifier, proof], { account: owner.account }),
+      donationGroup.write.registerName(["alice", root + 1n, nullifier, proof], { account: owner.account }),
       "root provided has not existed in WakeStake",
     );
   });
@@ -204,17 +236,25 @@ describe("DonationGroup", async function () {
     );
 
     // wake() spends the stake's nullifier, so the owner has to prove again with their new stake
+    await donationGroup.write.registerName(["alice", root, nullifier, proof], { account: owner.account });
     await networkHelpers.time.increase(HOUR);
     await wake(stakedNote, DAY);
     await viem.assertions.revertWith(
-      donationGroup.write.voteDonationAddress([charity.account.address, root, nullifier, proof], { account: owner.account }),
+      donationGroup.write.voteDonationAddress(["alice", charity.account.address, root, nullifier, proof], {
+        account: owner.account,
+      }),
       "stake was already withdrawn or woken up",
     );
   });
 
   describe("voting on the donation address and minimum stake", function () {
-    /** Five members each stake to the group and get added by the admin. `proofFor(i)` proves member i's stake. */
-    async function fiveStakingMembers() {
+    const NAMES = ["alice", "bob", "carol", "dave", "erin"];
+
+    /**
+     * Five members each stake to the group, get added by the admin, and register NAMES[i].
+     * `proofFor(i)` proves member i's stake against the group's current minimum.
+     */
+    async function fiveMembersWithNames() {
       const context = await setup({ donateTo: "donationGroup" });
       const { donationGroup, stake, syncMerkleTree } = context;
       const members = [owner, ...extraStakers];
@@ -225,7 +265,7 @@ describe("DonationGroup", async function () {
       }
       const merkleTree = await syncMerkleTree();
 
-      /** [root, nullifier, proof] for member i, against the group's current minimum */
+      /** [root, nullifier, proof] for member i */
       async function proofFor(memberIndex: number) {
         const { publicValues, proof } = await generateStakeOwnershipProof(stakeOwnershipCircuit, {
           merkleTree,
@@ -235,30 +275,37 @@ describe("DonationGroup", async function () {
         });
         return [publicValues.root, publicValues.nullifier, proof] as const;
       }
+      for (const [memberIndex, member] of members.entries()) {
+        await donationGroup.write.registerName([NAMES[memberIndex], ...(await proofFor(memberIndex))], {
+          account: member.account,
+        });
+      }
       return { ...context, members, proofFor };
     }
 
-    it("switches the donation address instantly once 3 of 5 members vote for it", async function () {
-      const { donationGroup, members, proofFor } = await fiveStakingMembers();
+    it("switches the donation address instantly once 3 of 5 names vote for it", async function () {
+      const { donationGroup, members, proofFor } = await fiveMembersWithNames();
       const newCause = ownerRecipient.account.address;
       assert.equal(await donationGroup.read.memberCount(), 5n);
 
       // 2 of 5 is not a majority
       for (const [memberIndex, expectedVotes] of [[0, 1n], [1, 2n]] as const) {
         await viem.assertions.emitWithArgs(
-          donationGroup.write.voteDonationAddress([newCause, ...(await proofFor(memberIndex))], {
+          donationGroup.write.voteDonationAddress([NAMES[memberIndex], newCause, ...(await proofFor(memberIndex))], {
             account: members[memberIndex].account,
           }),
           donationGroup,
           "DonationAddressVoted",
-          [members[memberIndex].account.address, newCause, expectedVotes],
+          [members[memberIndex].account.address, NAMES[memberIndex], newCause, expectedVotes],
         );
       }
       sameAddress(await donationGroup.read.donationAddress(), charity.account.address);
 
       // the third vote is
       await viem.assertions.emitWithArgs(
-        donationGroup.write.voteDonationAddress([newCause, ...(await proofFor(2))], { account: members[2].account }),
+        donationGroup.write.voteDonationAddress([NAMES[2], newCause, ...(await proofFor(2))], {
+          account: members[2].account,
+        }),
         donationGroup,
         "DonationAddressChanged",
         [newCause],
@@ -266,40 +313,79 @@ describe("DonationGroup", async function () {
       sameAddress(await donationGroup.read.donationAddress(), newCause);
     });
 
-    it("a member voting again moves their vote instead of adding one", async function () {
-      const { donationGroup, members, proofFor } = await fiveStakingMembers();
+    it("voting again with a name moves its vote instead of adding one", async function () {
+      const { donationGroup, members, proofFor } = await fiveMembersWithNames();
       const firstChoice = ownerRecipient.account.address;
       const secondChoice = groupMember.account.address;
       const proof = await proofFor(0);
       const asMember = { account: members[0].account };
 
-      await donationGroup.write.voteDonationAddress([firstChoice, ...proof], asMember);
-      await donationGroup.write.voteDonationAddress([secondChoice, ...proof], asMember);
-      await donationGroup.write.voteDonationAddress([secondChoice, ...proof], asMember);
+      await donationGroup.write.voteDonationAddress(["alice", firstChoice, ...proof], asMember);
+      await donationGroup.write.voteDonationAddress(["alice", secondChoice, ...proof], asMember);
+      await donationGroup.write.voteDonationAddress(["alice", secondChoice, ...proof], asMember);
 
       assert.equal(await donationGroup.read.donationAddressVotes([firstChoice]), 0n);
       assert.equal(await donationGroup.read.donationAddressVotes([secondChoice]), 1n);
-      sameAddress(await donationGroup.read.donationAddressVoteOf([members[0].account.address]), secondChoice);
+      sameAddress(await donationGroup.read.donationAddressVoteOf([nameId("alice")]), secondChoice);
       await viem.assertions.revertWith(
-        donationGroup.write.voteDonationAddress([zeroAddress, ...proof], asMember),
+        donationGroup.write.voteDonationAddress(["alice", zeroAddress, ...proof], asMember),
         "donation address cannot be zero",
       );
     });
 
+    it("votes belong to the name: after a transfer only the new owner can move its vote", async function () {
+      const { donationGroup, groupRegistry, members, proofFor } = await fiveMembersWithNames();
+      const [alice, bob] = members;
+      const firstChoice = ownerRecipient.account.address;
+      const secondChoice = groupMember.account.address;
+      await donationGroup.write.voteDonationAddress(["alice", firstChoice, ...(await proofFor(0))], {
+        account: alice.account,
+      });
+
+      await groupRegistry.write.safeTransferFrom(
+        [alice.account.address, bob.account.address, await groupRegistry.read.findTokenId(["alice"]), 1n, "0x"],
+        { account: alice.account },
+      );
+
+      // the old owner can't vote with it anymore, the new owner moves its existing vote
+      await viem.assertions.revertWith(
+        donationGroup.write.voteDonationAddress(["alice", secondChoice, ...(await proofFor(0))], {
+          account: alice.account,
+        }),
+        "you don't own this name",
+      );
+      await donationGroup.write.voteDonationAddress(["alice", secondChoice, ...(await proofFor(1))], {
+        account: bob.account,
+      });
+      assert.equal(await donationGroup.read.donationAddressVotes([firstChoice]), 0n);
+      assert.equal(await donationGroup.read.donationAddressVotes([secondChoice]), 1n);
+      assert.equal(await donationGroup.read.memberCount(), 5n);
+
+      // the admin name isn't a member name, so it has no vote
+      await viem.assertions.revertWith(
+        donationGroup.write.voteDonationAddress(["admin", secondChoice, ...(await proofFor(1))], {
+          account: groupAdmin.account,
+        }),
+        "not a member name of this group",
+      );
+    });
+
     it("lowers the minimum stake once 3 of 5 vote for it, and old proofs stop working", async function () {
-      const { donationGroup, members, proofFor } = await fiveStakingMembers();
+      const { donationGroup, members, proofFor } = await fiveMembersWithNames();
       const lowerMinimum = STAKE_AMOUNT / 2n;
       // made for the old minimum, which is one of the proof's public inputs
       const staleProof = await proofFor(3);
 
       for (const memberIndex of [0, 1]) {
-        await donationGroup.write.voteMinStakeAmount([lowerMinimum, ...(await proofFor(memberIndex))], {
+        await donationGroup.write.voteMinStakeAmount([NAMES[memberIndex], lowerMinimum, ...(await proofFor(memberIndex))], {
           account: members[memberIndex].account,
         });
       }
       assert.equal(await donationGroup.read.minStakeAmount(), STAKE_AMOUNT);
       await viem.assertions.emitWithArgs(
-        donationGroup.write.voteMinStakeAmount([lowerMinimum, ...(await proofFor(2))], { account: members[2].account }),
+        donationGroup.write.voteMinStakeAmount([NAMES[2], lowerMinimum, ...(await proofFor(2))], {
+          account: members[2].account,
+        }),
         donationGroup,
         "MinStakeAmountChanged",
         [lowerMinimum],
@@ -307,17 +393,19 @@ describe("DonationGroup", async function () {
       assert.equal(await donationGroup.read.minStakeAmount(), lowerMinimum);
 
       await assert.rejects(
-        donationGroup.write.registerName(["dave", ...staleProof], { account: members[3].account }),
+        donationGroup.write.voteMinStakeAmount([NAMES[3], lowerMinimum, ...staleProof], { account: members[3].account }),
       );
       await viem.assertions.emitWithArgs(
-        donationGroup.write.registerName(["dave", ...(await proofFor(3))], { account: members[3].account }),
+        donationGroup.write.voteMinStakeAmount([NAMES[3], lowerMinimum, ...(await proofFor(3))], {
+          account: members[3].account,
+        }),
         donationGroup,
-        "NewMember",
-        [members[3].account.address, "dave"],
+        "MinStakeAmountVoted",
+        [members[3].account.address, NAMES[3], lowerMinimum, 4n],
       );
     });
 
-    it("adding the same member twice is rejected, so the member count stays honest", async function () {
+    it("adding the same member twice is rejected", async function () {
       const { donationGroup } = await setup();
       await donationGroup.write.addMember([groupMember.account.address], { account: groupAdmin.account });
 
@@ -325,7 +413,7 @@ describe("DonationGroup", async function () {
         donationGroup.write.addMember([groupMember.account.address], { account: groupAdmin.account }),
         "already a member",
       );
-      assert.equal(await donationGroup.read.memberCount(), 1n);
+      assert.equal(await donationGroup.read.isMember([groupMember.account.address]), true);
     });
   });
 });
