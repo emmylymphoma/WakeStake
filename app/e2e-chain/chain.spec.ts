@@ -112,4 +112,19 @@ test('stake → wake with a ZK proof → oversleep → whole stake goes to chari
 
   await page.getByRole('button', { name: /Proof of Snooze/ }).click();
   await expect(page.getByText('Settled on-chain with a zero-knowledge proof.')).toBeVisible();
+
+  // Change of heart: re-stake, then cash the whole stake back out with an on-time proof. No fee.
+  await page.goto('/'); // persisted users land on the dashboard
+  await page.getByRole('button', { name: 'Re-stake $50' }).click();
+  await expect(page.getByRole('button', { name: 'Cash out $50' })).toBeVisible({ timeout: 60_000 });
+  expect(await balanceOf(wakeStake)).toBe(contractBefore + STAKE);
+  const sleeperBefore = await balanceOf(SLEEPER);
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Cash out $50' }).click(); // proof + withdraw(lose=false)
+  await expect(page.getByText('Stake withdrawn.')).toBeVisible({ timeout: 180_000 });
+
+  expect(await balanceOf(wakeStake)).toBe(contractBefore);
+  expect(await balanceOf(SLEEPER)).toBe(sleeperBefore + STAKE);
+  expect(await balanceOf(FEE_COLLECTOR)).toBe(feeBefore + (STAKE * 10n) / 100n); // unchanged: no fee on a cash-out
 });

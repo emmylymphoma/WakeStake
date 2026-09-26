@@ -24,7 +24,7 @@ import type { Cents, TxResult, WakeCode } from '../../domain/types';
 import type { StakeService, WalletService } from '../types';
 import type { ChainConfig } from './config';
 import { createNoteStore, type NoteRecord, type NoteStore } from './noteStore';
-import { fromUnixSeconds, planSlash, planWake, toUnixSeconds } from './timing';
+import { fromUnixSeconds, planSlash, planWake, planWithdraw, toUnixSeconds } from './timing';
 
 const wakeStakeAbi = parseAbi([
   'function stake(address _token, uint256 _amount, uint256 _allSecretsHash)',
@@ -364,6 +364,55 @@ export function createChainStakeService(cfg: ChainConfig, deps: ChainDeps = crea
         donateViaUniswap(owner, token),
       ]);
       return { ...tx, proofHash: keccak256(proof.proof), amountLabel, donatedAs };
+    },
+
+    /**
+     * Cash out: `withdraw(lose=false)` to the owner's own wallet, no fee. It's the same on-time
+     * proof as wake(), which needs the secret, so only the owner can do it and only before the
+     * deadline. The note's secret is the bathroom code, kept in the note store since the deposit.
+     */
+    async withdraw({ wallet }) {
+      const owner = getAddress(wallet.address);
+      const current = activeNote(owner);
+      if (!current) return null;
+      const { note } = current;
+
+      const plan = planWithdraw(await now(), note.wakeTimestamp);
+      if (plan.kind === 'late') {
+        const deadline = fromUnixSeconds(note.wakeTimestamp);
+        throw new Error(
+          `Too late: you had to be up by ${deadline.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. ` +
+            'The contract only lets the owner withdraw before the deadline, so your stake belongs to the charity.',
+        );
+      }
+
+      const proof = await deps.prove({
+        merkleTree: await fetchMerkleTree(publicClient, cfg.wakeStake),
+        note,
+        secret: current.secret,
+        pastTimestamp: plan.pastTimestamp,
+        futureTimestamp: plan.futureTimestamp,
+        withdrawal: { recipient: BigInt(owner), token: note.token, amount: note.amount },
+      });
+      const token = addressOf(note.token);
+      const tx = await send(owner, {
+        address: cfg.wakeStake,
+        abi: wakeStakeAbi,
+        functionName: 'withdraw',
+        args: [
+          owner,
+          token,
+          note.amount,
+          proof.root,
+          proof.nullifier,
+          plan.pastTimestamp,
+          plan.futureTimestamp,
+          proof.lose,
+          proof.proof,
+        ],
+      });
+      notes.setStatus(current, 'spent', tx.txHash);
+      return { ...tx, proofHash: keccak256(proof.proof), amountLabel: await tokenLabel(token, note.amount) };
     },
   };
 }

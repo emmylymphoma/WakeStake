@@ -20,5 +20,9 @@ export function createMockStakeService(latencyMs: number): StakeService {
       await delay(latencyMs);
       return tx();
     },
+    async withdraw() {
+      await delay(latencyMs);
+      return tx();
+    },
   };
 }

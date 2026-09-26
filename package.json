@@ -12,7 +12,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@aztec/bb.js": "5.0.0-nightly.20260525",
     "@openzeppelin/contracts": "^5.6.1",

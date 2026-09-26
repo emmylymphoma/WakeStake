@@ -131,3 +131,8 @@ export function applyWake(state: AppState): AppState {
 export function applyRestake(state: AppState): AppState {
   return { ...state, balance: state.stake.amount };
 }
+
+/** The user cashed the stake out: nothing at risk until they re-stake. Not a loss, so stats are untouched. */
+export function applyWithdraw(state: AppState): AppState {
+  return { ...state, balance: 0 };
+}

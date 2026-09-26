@@ -67,4 +67,24 @@ describe('reducer + mock services', () => {
 
     expect(reducer(s, { type: 'RESET' })).toEqual(createInitialState());
   });
+
+  it('cashing out empties the stake without counting as a loss', async () => {
+    const services = createMockServices({ latencyMs: 0 });
+    let s = createInitialState();
+    const wallet = await services.wallet.connect();
+    const stake = { amount: dollars(25), penaltyPerSnooze: dollars(5), escalating: false, allOrNothing: true };
+    s = reducer(s, { type: 'SET_STAKE', stake, wallet });
+    s = reducer(s, { type: 'STAKE_LOCKED' });
+    expect(s.balance).toBe(dollars(25));
+
+    const tx = await services.stake.withdraw({ wallet });
+    expect(tx?.txHash).toMatch(/^0x/);
+    s = reducer(s, { type: 'STAKE_WITHDRAWN' });
+    expect(s.balance).toBe(0);
+    expect(s.stats.totalLost).toBe(0);
+    expect(s.stats.streak).toBe(0);
+
+    s = reducer(s, { type: 'STAKE_LOCKED' });
+    expect(s.balance).toBe(dollars(25));
+  });
 });

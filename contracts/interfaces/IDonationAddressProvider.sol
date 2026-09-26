@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
 /// @notice Implemented by contracts used as a stake's donation address, e.g. a friend group.

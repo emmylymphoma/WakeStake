@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
 // ENSv2 contracts from the lib/contracts-v2 submodule, for deploying ENSv2 locally in tests.

@@ -13,15 +13,24 @@ const HALF_WINDOW = TIMESTAMP_WINDOW_SECONDS / 2n;
  */
 export const WAKE_WINDOW_SECONDS = 3n * HOUR;
 
-export type WakePlan =
-  { kind: 'prove'; pastTimestamp: bigint; futureTimestamp: bigint } | { kind: 'too-early' } | { kind: 'late' };
+export type WithdrawPlan = { kind: 'prove'; pastTimestamp: bigint; futureTimestamp: bigint } | { kind: 'late' };
 
-/** On time needs futureTimestamp < deadline, so the window is cut short near the deadline. */
-export function planWake(now: bigint, deadline: bigint): WakePlan {
+export type WakePlan = WithdrawPlan | { kind: 'too-early' };
+
+/**
+ * Cashing out is an on-time proof, allowed any time before the deadline. On time needs
+ * futureTimestamp < deadline, so the window is cut short near the deadline.
+ */
+export function planWithdraw(now: bigint, deadline: bigint): WithdrawPlan {
   if (now >= deadline) return { kind: 'late' };
-  if (deadline - now > WAKE_WINDOW_SECONDS) return { kind: 'too-early' };
   const futureTimestamp = now + HALF_WINDOW < deadline ? now + HALF_WINDOW : deadline - 1n;
   return { kind: 'prove', pastTimestamp: now - HALF_WINDOW, futureTimestamp };
+}
+
+/** Same proof as a withdraw, but only worth sending close to the deadline. */
+export function planWake(now: bigint, deadline: bigint): WakePlan {
+  if (now < deadline && deadline - now > WAKE_WINDOW_SECONDS) return { kind: 'too-early' };
+  return planWithdraw(now, deadline);
 }
 
 export type SlashPlan = { kind: 'prove'; pastTimestamp: bigint; futureTimestamp: bigint } | { kind: 'too-early' };

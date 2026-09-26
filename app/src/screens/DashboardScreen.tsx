@@ -10,6 +10,7 @@ import { routeAfterSnooze, snoozeButtonLabel } from '../flows/snoozeCopy';
 import { useSnoozeFlow } from '../flows/useSnoozeFlow';
 import { useLockStake } from '../flows/useLockStake';
 import { useWake } from '../flows/useWake';
+import { useWithdrawStake } from '../flows/useWithdrawStake';
 import { useNavigation } from '../navigation/Navigation';
 import { useAppState } from '../state/AppStateContext';
 
@@ -19,6 +20,7 @@ export function DashboardScreen() {
   const { snooze, step, error } = useSnoozeFlow();
   const { wake, needsScan } = useWake();
   const { lock, locking, error: lockError } = useLockStake();
+  const { withdraw, withdrawing, error: withdrawError, result: withdrawn } = useWithdrawStake();
   const now = useNow(30_000);
 
   const { stats, stake, balance, alarm, beneficiary, session } = state;
@@ -58,8 +60,19 @@ export function DashboardScreen() {
 
       {broke ? (
         <Card tone="danger" className="stack-sm">
-          <strong>Your stake is used up.</strong>
-          <span className="muted">Nothing is at stake right now. Re-stake to put money behind your alarm again.</span>
+          <strong>{withdrawn ? 'Stake withdrawn.' : 'Your stake is used up.'}</strong>
+          <span className="muted">
+            {withdrawn?.amountLabel ? `${withdrawn.amountLabel} is back in your wallet. ` : ''}
+            Nothing is at stake right now. Re-stake to put money behind your alarm again.
+            {withdrawn?.explorerUrl ? (
+              <>
+                {' '}
+                <a href={withdrawn.explorerUrl} target="_blank" rel="noreferrer">
+                  View transaction
+                </a>
+              </>
+            ) : null}
+          </span>
           <Button variant="secondary" loading={locking} onClick={() => lock()}>
             Re-stake {formatMoney(stake.amount)}
           </Button>
@@ -106,6 +119,14 @@ export function DashboardScreen() {
             </>
           )}
         </div>
+        {!broke && state.wallet ? (
+          <>
+            <Button variant="ghost" loading={withdrawing} onClick={withdraw}>
+              Cash out {formatMoney(balance)}
+            </Button>
+            {withdrawError ? <p className="text-danger small">{withdrawError}</p> : null}
+          </>
+        ) : null}
       </Card>
 
       <div className="stat-grid">

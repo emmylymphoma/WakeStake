@@ -1,5 +1,13 @@
 import { createInitialState } from '../domain/defaults';
-import { applyCharityPick, applyFreeSnooze, applyRestake, applySnooze, applyWake, startSession } from '../domain/rules';
+import {
+  applyCharityPick,
+  applyFreeSnooze,
+  applyRestake,
+  applySnooze,
+  applyWake,
+  applyWithdraw,
+  startSession,
+} from '../domain/rules';
 import type {
   AlarmConfig,
   AppState,
@@ -28,6 +36,8 @@ export type Action =
   | { type: 'WAKE' }
   /** The deposit went through: the full configured amount is at risk again. */
   | { type: 'STAKE_LOCKED' }
+  /** The stake was cashed out to the wallet: nothing at risk anymore. */
+  | { type: 'STAKE_WITHDRAWN' }
   | { type: 'SET_DEMO_CONTROLS'; on: boolean }
   | { type: 'RESET' };
 
@@ -70,6 +80,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return applyWake(state);
     case 'STAKE_LOCKED':
       return applyRestake(state);
+    case 'STAKE_WITHDRAWN':
+      return applyWithdraw(state);
     case 'SET_DEMO_CONTROLS':
       return { ...state, demoControls: action.on };
     case 'RESET':

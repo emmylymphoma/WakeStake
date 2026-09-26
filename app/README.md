@@ -41,6 +41,7 @@ The contract is **all or nothing**, so in chain mode the per-snooze penalty sett
 | Arm the alarm (onboarding step 2) | mint test tokens if needed → `approve` → `stake()`, locked until your next wake-by time |
 | Scan bathroom QR before wake-by | ZK proof → `wake()`: same stake, rolled over to the next wake-by |
 | First snooze after wake-by | ZK proof → `withdraw(lose=true)`: the whole stake to `VITE_DONATION_ADDRESS`, minus the fee |
+| "Cash out" on the dashboard, before wake-by | ZK proof → `withdraw(lose=false)`: the whole stake back to your wallet, no fee. Impossible after wake-by |
 
 The bathroom QR code **is** the circuit's `secret`, so "I'm up" can only be proven with it. Notes (needed
 to ever move the stake again) are kept in localStorage under `wakestake:notes:v1`; the ↺ demo reset

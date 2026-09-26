@@ -69,12 +69,12 @@ export const QUESTIONS: Question[] = [
     prompt: 'Pride month',
     emoji: '🌈',
     a: {
-      label: 'LGBTQ+',
+      label: 'Yasss 💅',
       champion: charity('trevor', 'The Trevor Project', 'Crisis support for LGBTQ+ young people.', '🏳️‍🌈', 'LGBTQ+'),
       xEvidence: 'Your profile picture has had a rainbow border since 2019',
     },
     b: {
-      label: 'Normal',
+      label: 'Cringe 🤮',
       champion: charity('focus-family', 'Focus on the Family', 'Christian ministry for traditional families.', '⛪', 'LGBTQ+'),
       xEvidence: 'Replied “read Leviticus” to 6 brands in June',
     },
@@ -234,7 +234,7 @@ export const QUESTIONS: Question[] = [
     prompt: 'Feminism',
     emoji: '👠',
     a: {
-      label: 'Feminist',
+      label: 'Girl boss 💅',
       champion: charity('feminist-majority', 'Feminist Majority Foundation', 'Equality for women, loudly.', '♀️', 'Gender'),
       xEvidence: 'Replied “men ☕” to a man’s post about coffee',
     },

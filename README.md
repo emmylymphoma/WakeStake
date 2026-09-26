@@ -5,6 +5,7 @@ u snooze u lose
 1. **stake**: deposit an ERC20 into `WakeStake` as a private note (Poseidon commitment in a LeanIMT). your alarm time and a donation address are hidden inside. only you know `secret`, your friend group knows the rest.
 2. **wake**: before the alarm you prove in zk that you know `secret`, and the stake rolls over to tomorrow's alarm (`wake()`). nothing about your alarm is revealed on-chain.
 3. **oversleep**: after the alarm anyone in your group can prove you didn't wake up and slash the stake to the committed donation address (`withdraw()` with `lose = true`). the contract emits `YouLose` and the telegram bot shames you.
+   - **cash out**: before the alarm the same proof lets only you (you know `secret`) take the stake back to any address (`withdraw()` with `lose = false`), no fee. yes, you can chicken out at 5am.
 4. **friend groups**: the donation address is your group's `DonationGroup` contract. when a stake is lost, WakeStake asks the group where the money goes (`donationAddress()`). members vote on that and on the minimum stake. the group is an ENSv2 name, and every member is a subname.
 5. **charity swap**: a group's donation address can be a `DonationRouter`, which swaps the slashed tokens on Uniswap into the token the charity wants.
 
@@ -142,3 +143,5 @@ DonationRouter (demo charity, swaps on Uniswap): [0x1fB9B89A23db77dB03B3F720Dc38
 staked demo token wUSD: [0xD88E02ACFE7BEe003de28Aaf2330e8ec05857201](https://sepolia.etherscan.io/address/0xD88E02ACFE7BEe003de28Aaf2330e8ec05857201#code), charity token cUSD: [0x735F7ee6F0a603e8200f2F4a8b2F490F29D2C0ef](https://sepolia.etherscan.io/address/0x735F7ee6F0a603e8200f2F4a8b2F490F29D2C0ef#code)  
 verifiers (honk bb): WakeStakeVerifier [0x4e0B3227d033B6FF386aB8206B44eA388d4939AD](https://sepolia.etherscan.io/address/0x4e0B3227d033B6FF386aB8206B44eA388d4939AD#code), StakeOwnershipVerifier [0x47b0D80a103CE559219d1777CE7291c19a6F4164](https://sepolia.etherscan.io/address/0x47b0D80a103CE559219d1777CE7291c19a6F4164#code)  
 ENS (theirs): VerifiableFactory `0x9e726eb570beb6bceb495ab8cda7df517d4e841c`, UserRegistry implementation `0xa80338aaa8d23831cea25e858d1774534abb0263`
+# license
+MIT, see [LICENSE](LICENSE).

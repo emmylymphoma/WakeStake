@@ -52,6 +52,12 @@ export interface StakeService {
   }): Promise<TxResult | null>;
   /** Move `amount` from the stake to the charity. */
   slash(input: { wallet: Wallet; amount: Cents; charity: Charity }): Promise<TxResult>;
+  /**
+   * Cash the whole stake back out to the wallet. On-chain this is the same proof as a wake, so it
+   * only works before the deadline: after it, the stake belongs to the charity. Null when nothing
+   * is locked on-chain.
+   */
+  withdraw(input: { wallet: Wallet }): Promise<TxResult | null>;
 }
 
 export interface ProofService {
