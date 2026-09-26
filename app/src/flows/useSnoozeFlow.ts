@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { quoteSnooze } from '../domain/rules';
+import { needsCharityReveal, quoteSnooze } from '../domain/rules';
 import type { SnoozeEvent } from '../domain/types';
 import { randomId } from '../lib/random';
 import { useServices } from '../services/ServiceContext';
@@ -13,7 +13,11 @@ export const SNOOZE_STEP_LABELS: Record<SnoozeStep, string> = {
   writing: 'Drafting your public confession',
 };
 
-export type SnoozeOutcome = { kind: 'free' } | { kind: 'paid'; event: SnoozeEvent };
+export type SnoozeOutcome =
+  | { kind: 'free' }
+  /** First illegal snooze of the morning: pick + reveal the charity before charging. */
+  | { kind: 'needs-reveal' }
+  | { kind: 'paid'; event: SnoozeEvent };
 
 /**
  * Orchestrates a snooze. Free snoozes are recorded straight away; paid ones go
@@ -27,13 +31,15 @@ export function useSnoozeFlow() {
   const [error, setError] = useState<string | null>(null);
 
   const snooze = useCallback(async (): Promise<SnoozeOutcome | null> => {
-    const { wallet, charity } = state;
+    const { wallet } = state;
+    const charity = state.session?.pick?.charity;
     const quote = quoteSnooze(state);
     if (quote.kind === 'broke') return null;
     if (quote.kind === 'free' || quote.kind === 'last-free') {
       dispatch({ type: 'FREE_SNOOZE', at: new Date().toISOString() });
       return { kind: 'free' };
     }
+    if (needsCharityReveal(state)) return { kind: 'needs-reveal' };
     const penalty = quote.penalty;
     if (!wallet || !charity) return null;
 

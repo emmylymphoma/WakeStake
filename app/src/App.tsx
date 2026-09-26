@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { NavigationProvider, useNavigation, type Route } from './navigation/Navigation';
 import { AlarmScreen } from './screens/AlarmScreen';
 import { AlarmSetupScreen } from './screens/AlarmSetupScreen';
-import { CharityScreen } from './screens/CharityScreen';
+import { BeneficiaryScreen } from './screens/BeneficiaryScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { PenaltyScreen } from './screens/PenaltyScreen';
+import { QuestionnaireScreen } from './screens/QuestionnaireScreen';
 import { ReceiptScreen } from './screens/ReceiptScreen';
+import { RevealScreen } from './screens/RevealScreen';
 import { ScanWakeScreen } from './screens/ScanWakeScreen';
 import { ShamePostScreen } from './screens/ShamePostScreen';
 import { SnoozedScreen } from './screens/SnoozedScreen';
@@ -27,8 +29,10 @@ function Router() {
       return <StakeSetupScreen />;
     case 'alarmSetup':
       return <AlarmSetupScreen />;
-    case 'charity':
-      return <CharityScreen />;
+    case 'beneficiary':
+      return <BeneficiaryScreen mode={route.mode} />;
+    case 'questionnaire':
+      return <QuestionnaireScreen mode={route.mode} />;
     case 'wakeQr':
       return <WakeQrScreen mode={route.mode} />;
     case 'dashboard':
@@ -37,6 +41,8 @@ function Router() {
       return <AlarmScreen />;
     case 'scanWake':
       return <ScanWakeScreen />;
+    case 'reveal':
+      return <RevealScreen />;
     case 'snoozed':
       return <SnoozedScreen />;
     case 'penalty':

@@ -4,12 +4,14 @@ export type Route =
   | { name: 'welcome' }
   | { name: 'stakeSetup' }
   | { name: 'alarmSetup' }
-  | { name: 'charity' }
+  | { name: 'beneficiary'; mode: 'onboarding' | 'manage' }
+  | { name: 'questionnaire'; mode: 'onboarding' | 'manage' }
   | { name: 'wakeQr'; mode: 'onboarding' | 'manage' }
   | { name: 'dashboard' }
   | { name: 'alarm' }
   | { name: 'scanWake' }
   | { name: 'snoozed' }
+  | { name: 'reveal' }
   | { name: 'penalty'; eventId: string }
   | { name: 'receipt'; eventId: string }
   | { name: 'shame'; eventId: string }
