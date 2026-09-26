@@ -4,6 +4,12 @@ import { configVariable, defineConfig } from "hardhat/config";
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
   solidity: {
+    // emit artifacts for the linked libraries so Ignition and tests can deploy them
+    npmFilesToBuild: [
+      "poseidon-solidity/PoseidonT3.sol",
+      "poseidon-solidity/PoseidonT4.sol",
+      "@zk-kit/lean-imt.sol/LeanIMT.sol",
+    ],
     profiles: {
       default: {
         version: "0.8.34",
