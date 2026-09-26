@@ -10,10 +10,12 @@ describe('reducer + mock services', () => {
     let s = createInitialState();
 
     const wallet = await services.wallet.connect();
-    const stake = { amount: dollars(25), penaltyPerSnooze: dollars(5), escalating: true };
-    await services.stake.deposit(wallet, stake.amount);
+    const stake = { amount: dollars(25), penaltyPerSnooze: dollars(5), escalating: true, allOrNothing: false };
     s = reducer(s, { type: 'SET_STAKE', stake, wallet });
     s = reducer(s, { type: 'SET_ALARM', alarm: { ...s.alarm, legalSnoozes: 0 } });
+    const wakeCode = await services.wakeVerification.enroll();
+    await services.stake.deposit({ wallet, amount: stake.amount, deadline: new Date(), wakeCode });
+    s = reducer(s, { type: 'STAKE_LOCKED' });
     const account = await services.xAccount.connect({ handleHint: '@emmy' });
     s = reducer(s, { type: 'SET_BENEFICIARY', beneficiary: { kind: 'x', account } });
     expect(s.profile.handle).toBe('emmy');

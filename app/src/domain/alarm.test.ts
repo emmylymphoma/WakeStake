@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alarmTimeline, describeDays, firstRingTime, formatClock, nextAlarmDate, shiftTime } from './alarm';
+import { alarmTimeline, describeDays, firstRingTime, formatClock, nextAlarmDate, nextDeadline, shiftTime } from './alarm';
 import type { AlarmConfig } from './types';
 
 const alarm = (over: Partial<AlarmConfig> = {}): AlarmConfig => ({
@@ -68,5 +68,23 @@ describe('formatting', () => {
     expect(describeDays(['mon', 'tue', 'wed', 'thu', 'fri'])).toBe('Weekdays');
     expect(describeDays(['sat', 'sun'])).toBe('Weekends');
     expect(describeDays(['mon', 'wed'])).toBe('Mon, Wed');
+  });
+});
+
+describe('nextDeadline', () => {
+  // Fri 2026-09-25 local time.
+  const friday = (h: number, m = 0) => new Date(2026, 8, 25, h, m);
+
+  it('is today’s wake-by if it hasn’t passed yet', () => {
+    expect(nextDeadline(alarm(), friday(6, 55))).toEqual(friday(7));
+  });
+
+  it('skips to the next alarm day once wake-by has passed', () => {
+    // Weekdays only: Friday 7:00 → Monday 7:00.
+    expect(nextDeadline(alarm(), friday(7))).toEqual(new Date(2026, 8, 28, 7, 0));
+  });
+
+  it('is null without alarm days', () => {
+    expect(nextDeadline(alarm({ days: [] }), friday(6))).toBeNull();
   });
 });

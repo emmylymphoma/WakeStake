@@ -8,15 +8,17 @@ import { formatMoney } from '../domain/money';
 import { quoteSnooze } from '../domain/rules';
 import { routeAfterSnooze, snoozeButtonLabel } from '../flows/snoozeCopy';
 import { useSnoozeFlow } from '../flows/useSnoozeFlow';
+import { useLockStake } from '../flows/useLockStake';
 import { useWake } from '../flows/useWake';
 import { useNavigation } from '../navigation/Navigation';
 import { useAppState } from '../state/AppStateContext';
 
 export function DashboardScreen() {
-  const { state, dispatch } = useAppState();
+  const { state } = useAppState();
   const { navigate, reset } = useNavigation();
   const { snooze, step, error } = useSnoozeFlow();
   const { wake, needsScan } = useWake();
+  const { lock, locking, error: lockError } = useLockStake();
   const now = useNow(30_000);
 
   const { stats, stake, balance, alarm, beneficiary, session } = state;
@@ -31,18 +33,17 @@ export function DashboardScreen() {
     if (outcome) reset(routeAfterSnooze(outcome));
   };
 
-  const resetDemo = () => {
-    if (window.confirm('Wipe all demo data and start over?')) {
-      dispatch({ type: 'RESET' });
-      reset({ name: 'welcome' });
-    }
-  };
-
   return (
     <Screen
       topRight={
-        <button type="button" className="icon-btn" onClick={resetDemo} aria-label="Reset demo" title="Reset demo">
-          ↺
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => navigate({ name: 'settings' })}
+          aria-label="Settings"
+          title="Settings"
+        >
+          ⚙️
         </button>
       }
     >
@@ -58,9 +59,10 @@ export function DashboardScreen() {
         <Card tone="danger" className="stack-sm">
           <strong>💀 Stake wiped out.</strong>
           <span className="muted">Your alarm has no teeth. Re-stake to make mornings dangerous again.</span>
-          <Button variant="secondary" onClick={() => dispatch({ type: 'RESTAKE' })}>
+          <Button variant="secondary" loading={locking} onClick={() => lock()}>
             Re-stake {formatMoney(stake.amount)}
           </Button>
+          {lockError ? <p className="text-danger small">{lockError}</p> : null}
         </Card>
       ) : null}
 
@@ -91,17 +93,25 @@ export function DashboardScreen() {
         </div>
         <ProgressBar value={balance} max={stake.amount} tone={balance / stake.amount < 0.34 ? 'danger' : 'lime'} />
         <div className="muted small">
-          Snoozing past {formatClock(alarm.wakeBy)} costs{' '}
-          <strong className="text-danger">{formatMoney(stake.penaltyPerSnooze)}</strong>
-          {stake.escalating ? ', doubling each time' : ' each'}
+          {stake.allOrNothing ? (
+            <>
+              Snoozing past {formatClock(alarm.wakeBy)} costs <strong className="text-danger">all of it</strong>
+            </>
+          ) : (
+            <>
+              Snoozing past {formatClock(alarm.wakeBy)} costs{' '}
+              <strong className="text-danger">{formatMoney(stake.penaltyPerSnooze)}</strong>
+              {stake.escalating ? ', doubling each time' : ' each'}
+            </>
+          )}
         </div>
       </Card>
 
       <div className="stat-grid">
         <Stat label="Streak" value={`${stats.streak}🔥`} tone={stats.streak > 0 ? 'lime' : undefined} />
-        <Stat label="Snoozes" value={stats.snoozeCount} />
-        <Stat label="Total lost" value={formatMoney(stats.totalLost)} tone={stats.totalLost > 0 ? 'danger' : undefined} />
         <Stat label="Best streak" value={stats.bestStreak} />
+        <Stat label="Snoozes" value={stats.snoozeCount} />
+        <Stat label="Wake-ups" value={stats.wakeCount} />
       </div>
 
       <Card className="alarm-card">
@@ -139,7 +149,7 @@ export function DashboardScreen() {
                   : 'Not set up yet — tap to fix.'}
             </span>
           </span>
-          <strong className="text-lime">{formatMoney(stats.totalLost)}</strong>
+          <span aria-hidden>→</span>
         </button>
       </Card>
 
@@ -180,30 +190,6 @@ export function DashboardScreen() {
         </Button>
         {error ? <p className="text-danger small">{error}</p> : null}
       </section>
-
-      {state.history.length > 0 ? (
-        <section className="stack-sm">
-          <h3 className="section-title">Hall of shame</h3>
-          <ul className="history">
-            {state.history.slice(0, 8).map((e) => (
-              <li key={e.id}>
-                <button type="button" className="history-row" onClick={() => navigate({ name: 'receipt', eventId: e.id })}>
-                  <span className="history-icon" aria-hidden>
-                    😴
-                  </span>
-                  <span className="grow">
-                    <span className="history-title">Snooze #{e.receipt.snoozeNumber}</span>
-                    <span className="muted small">
-                      {new Date(e.at).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
-                    </span>
-                  </span>
-                  <strong className="text-danger">−{formatMoney(e.penalty)}</strong>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
     </Screen>
   );
 }

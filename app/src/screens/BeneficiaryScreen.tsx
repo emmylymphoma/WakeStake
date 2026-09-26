@@ -67,7 +67,7 @@ export function BeneficiaryScreen({ mode }: { mode: 'onboarding' | 'manage' }) {
           </span>
           <div className="grow">
             <strong>No X? Take the questionnaire</strong>
-            <span className="muted small">Six questions. We fund whatever you like least.</span>
+            <span className="muted small">Pick a side on the spicy stuff. We fund the other side.</span>
           </div>
         </div>
         {source?.kind === 'questionnaire' ? (

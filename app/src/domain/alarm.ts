@@ -39,18 +39,28 @@ export function alarmTimeline(alarm: AlarmConfig, paidRings = 2): TimelineEntry[
   return entries;
 }
 
-/** Next first-ring strictly after `now`, or null if no days are selected. */
-export function nextAlarmDate(alarm: AlarmConfig, now: Date): Date | null {
-  if (alarm.days.length === 0) return null;
-  const { hours, minutes } = parseTime(firstRingTime(alarm));
+/** Next `time` on one of `days`, strictly after `after`. */
+function nextOccurrence(time: string, days: Weekday[], after: Date): Date | null {
+  if (days.length === 0) return null;
+  const { hours, minutes } = parseTime(time);
   for (let offset = 0; offset <= 7; offset++) {
-    const candidate = new Date(now);
-    candidate.setDate(now.getDate() + offset);
+    const candidate = new Date(after);
+    candidate.setDate(after.getDate() + offset);
     candidate.setHours(hours, minutes, 0, 0);
     const day = BY_JS_DAY[candidate.getDay()];
-    if (day && alarm.days.includes(day) && candidate.getTime() > now.getTime()) return candidate;
+    if (day && days.includes(day) && candidate.getTime() > after.getTime()) return candidate;
   }
   return null;
+}
+
+/** Next first-ring strictly after `now`, or null if no days are selected. */
+export function nextAlarmDate(alarm: AlarmConfig, now: Date): Date | null {
+  return nextOccurrence(firstRingTime(alarm), alarm.days, now);
+}
+
+/** Next must-be-up moment strictly after `after`. This is the deadline an on-chain stake commits to. */
+export function nextDeadline(alarm: AlarmConfig, after: Date): Date | null {
+  return nextOccurrence(alarm.wakeBy, alarm.days, after);
 }
 
 export function formatCountdown(ms: number): string {

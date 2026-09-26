@@ -16,7 +16,9 @@ export function createMockProofService(latencyMs: number): ProofService {
         charityName: charity.name,
         walletAddress: wallet.address,
         snoozeNumber,
-        proofHash: `0x${randomHex(32)}`,
+        proofHash: tx.proofHash ?? `0x${randomHex(32)}`,
+        onChain: tx.onChain,
+        explorerUrl: tx.explorerUrl,
       };
     },
   };

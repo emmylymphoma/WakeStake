@@ -2,8 +2,8 @@
 
 > U Snooze U Lose.
 
-Frontend-only demo. Everything that will later hit a blockchain, wallet, AI or X/Twitter
-runs on **mock services** — no real money, no real posts.
+By default everything that hits a blockchain, wallet, AI or X/Twitter runs on **mock services**:
+no real money, no real posts. See [Real transactions](#real-transactions-chain-mode) to use the real contract.
 
 ```sh
 cd app
@@ -27,6 +27,41 @@ downloaded QR, regenerating the code, persistence, and a **live-camera** scan (C
 webcam plays a generated QR video).
 
 Manual: `npm run dev`, walk through onboarding, use the dashboard's demo controls. The ↺ button resets.
+
+## Real transactions (chain mode)
+
+Without config the app runs on mocks. With `VITE_CHAIN` set (see [.env.example](.env.example)) the **wallet**
+and **stake** services are real: an injected wallet (MetaMask) and the WakeStake contract, with the
+Noir/UltraHonk proofs generated in the browser. Everything else (X, AI copy, charity oracle) stays mocked.
+
+The contract is **all or nothing**, so in chain mode the per-snooze penalty settings are replaced by:
+
+| Step | On-chain |
+| ---- | -------- |
+| Arm the alarm (onboarding step 2) | mint test tokens if needed → `approve` → `stake()`, locked until your next wake-by time |
+| Scan bathroom QR before wake-by | ZK proof → `wake()`: same stake, rolled over to the next wake-by |
+| First snooze after wake-by | ZK proof → `withdraw(lose=true)`: the whole stake to `VITE_DONATION_ADDRESS`, minus the fee |
+
+The bathroom QR code **is** the circuit's `secret`, so "I'm up" can only be proven with it. Notes (needed
+to ever move the stake again) are kept in localStorage under `wakestake:notes:v1`; the ↺ demo reset
+doesn't touch them. Proofs need the repo-root dependencies: run `pnpm install` in the root first.
+
+**Local chain** (from the repo root, then `cd app && npm run dev`):
+
+```sh
+pnpm hardhat node                                              # terminal 1
+pnpm hardhat run scripts/deploy-local.ts --network localhost   # deploys + writes app/.env.local
+```
+
+Add the Hardhat network to MetaMask (RPC `http://127.0.0.1:8545`, chain id 31337) and import a Hardhat test
+account. `npm run test:e2e:chain` runs the whole stake → wake → oversleep → slash cycle against it
+(`CHAIN_E2E_BUILD=1` for the production build).
+
+**Sepolia**: the contract is already deployed. Deploy a test token (see `.env.example`), set
+`VITE_CHAIN=sepolia`, `VITE_TOKEN_ADDRESS` and `VITE_DONATION_ADDRESS` in `app/.env.local`. You need Sepolia ETH for gas.
+To demo a slash, set the wake-by time a few minutes ahead: the contract only releases a stake after its deadline.
+
+After changing the circuit, `pnpm build:verifier` in the root also copies the compiled circuit into the app.
 
 ## Demo flow
 
@@ -84,9 +119,9 @@ in `services/types.ts` and swap the entry in `createServices.ts` (or pass `servi
 
 | Service      | Mock today                         | Real implementation later                 |
 | ------------ | ---------------------------------- | ----------------------------------------- |
-| `wallet`     | random address                     | viem wallet client / WalletConnect        |
-| `stake`      | fake tx hashes                     | WakeStake escrow contract (deposit/slash) |
-| `proof`      | random proof hash                  | on-chain receipt / Noir ZK proof          |
+| `wallet`     | random address                     | ✅ injected wallet via viem (`services/chain`) |
+| `stake`      | fake tx hashes                     | ✅ WakeStake contract + in-browser ZK proofs (`services/chain`) |
+| `proof`      | random proof hash                  | receipt carries the real tx + proof hash in chain mode |
 | `copywriter` | template strings                   | LLM-written shame post                    |
 | `social`     | fake x.com URL                     | X API                                     |
 | `xAccount`   | fake consent sheet                 | X OAuth 2.0 (PKCE), tokens server-side    |

@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Screen } from '../components/Screen';
 import { Button, ChipGroup, Eyebrow, Field } from '../components/ui';
 import { SNOOZE_MINUTES, WEEKDAYS, alarmTimeline, describeDays, formatClock } from '../domain/alarm';
+import { formatMoney } from '../domain/money';
 import type { AlarmConfig, Weekday } from '../domain/types';
+import { useLockStake } from '../flows/useLockStake';
 import { useNavigation } from '../navigation/Navigation';
 import { useAppState } from '../state/AppStateContext';
 
@@ -23,6 +25,7 @@ const TIMELINE_LABEL = {
 export function AlarmSetupScreen() {
   const { state, dispatch } = useAppState();
   const { navigate, back } = useNavigation();
+  const { lock, locking, error } = useLockStake();
   const [wakeBy, setWakeBy] = useState(state.alarm.wakeBy);
   const [legalSnoozes, setLegalSnoozes] = useState(state.alarm.legalSnoozes);
   const [days, setDays] = useState<Weekday[]>(state.alarm.days);
@@ -34,8 +37,11 @@ export function AlarmSetupScreen() {
   const toggleDay = (d: Weekday) =>
     setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : WEEKDAYS.filter((x) => x === d || cur.includes(x))));
 
-  const save = () => {
+  // Locks the stake until the first wake-by deadline, unless it's already locked (e.g. came back to this step).
+  const needsDeposit = state.balance <= 0;
+  const save = async () => {
     dispatch({ type: 'SET_ALARM', alarm });
+    if (needsDeposit && !(await lock(alarm))) return;
     navigate({ name: 'beneficiary', mode: 'onboarding' });
   };
 
@@ -44,9 +50,16 @@ export function AlarmSetupScreen() {
       onBack={back}
       step={{ current: 2, total: 4 }}
       footer={
-        <Button size="lg" disabled={days.length === 0 || !wakeBy} onClick={save}>
-          Arm the alarm
-        </Button>
+        <>
+          <Button size="lg" disabled={days.length === 0 || !wakeBy} loading={locking} onClick={save}>
+            {locking
+              ? 'Locking stake…'
+              : needsDeposit
+                ? `Arm & lock ${formatMoney(state.stake.amount)}`
+                : 'Arm the alarm'}
+          </Button>
+          {error ? <p className="fine-print text-danger">{error}</p> : null}
+        </>
       }
     >
       <Eyebrow>Step 2 · The alarm</Eyebrow>

@@ -47,7 +47,7 @@ function snoozeEvent(penalty: number, balanceAfter: number, index = 0): SnoozeEv
 }
 
 describe('quotePenalty', () => {
-  const stake = { amount: dollars(50), penaltyPerSnooze: dollars(5), escalating: true };
+  const stake = { amount: dollars(50), penaltyPerSnooze: dollars(5), escalating: true, allOrNothing: false };
 
   it('doubles per paid snooze when escalating', () => {
     expect([0, 1, 2, 3].map((i) => quotePenalty(stake, dollars(1000), i, 0))).toEqual([5, 10, 20, 40].map(dollars));
@@ -64,6 +64,11 @@ describe('quotePenalty', () => {
   it('never exceeds the remaining balance', () => {
     expect(quotePenalty(stake, dollars(3), 0, 0)).toBe(dollars(3));
     expect(quotePenalty(stake, 0, 0, 0)).toBe(0);
+  });
+
+  it('takes the whole balance on the first paid snooze when all-or-nothing', () => {
+    const allOrNothing = { ...stake, allOrNothing: true };
+    expect([0, 1, 2, 3].map((i) => quotePenalty(allOrNothing, dollars(50), i, 2))).toEqual([0, 0, 50, 50].map(dollars));
   });
 
   it('caps escalation', () => {

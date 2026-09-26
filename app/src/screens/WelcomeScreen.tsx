@@ -4,6 +4,7 @@ import { Screen } from '../components/Screen';
 import { Button, Field } from '../components/ui';
 import { SLOGAN } from '../domain/copy';
 import { useNavigation } from '../navigation/Navigation';
+import { useServices } from '../services/ServiceContext';
 import { useAppState } from '../state/AppStateContext';
 
 const HOW_IT_WORKS = [
@@ -16,6 +17,7 @@ const HOW_IT_WORKS = [
 export function WelcomeScreen() {
   const { state, dispatch } = useAppState();
   const { navigate } = useNavigation();
+  const services = useServices();
   const [displayName, setDisplayName] = useState(state.profile.displayName);
   const ready = displayName.trim().length > 0;
 
@@ -31,7 +33,11 @@ export function WelcomeScreen() {
           <Button size="lg" disabled={!ready} onClick={start}>
             Put money on it →
           </Button>
-          <p className="fine-print">No real money. This prototype runs entirely on mock services.</p>
+          <p className="fine-print">
+            {services.stake.penaltyModel === 'all-or-nothing'
+              ? 'Real transactions: your stake is locked in the WakeStake contract.'
+              : 'No real money. This prototype runs entirely on mock services.'}
+          </p>
         </>
       }
     >

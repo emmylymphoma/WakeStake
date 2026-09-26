@@ -4,6 +4,14 @@ u snooze u lose
 # mobile UI prototype
 see [app/README.md](app/README.md) — `cd app && npm install && npm run dev`
 
+real transactions against a local chain (after `pnpm install` here):
+```sh
+pnpm hardhat node                                              # terminal 1
+pnpm hardhat run scripts/deploy-local.ts --network localhost   # writes app/.env.local
+cd app && npm run dev
+```
+see [app/README.md](app/README.md#real-transactions-chain-mode) for sepolia.
+
 
 # install zk: noir + bb
 

@@ -44,7 +44,7 @@ export function ReceiptScreen({ eventId }: { eventId: string }) {
   ];
 
   return (
-    <Screen onBack={back} topRight={<MockBadge>MOCK</MockBadge>}>
+    <Screen onBack={back} topRight={r.onChain ? null : <MockBadge>MOCK</MockBadge>}>
       <div className="receipt">
         <div className="receipt-head">
           <div className="receipt-brand">WAKESTAKE</div>
@@ -68,9 +68,20 @@ export function ReceiptScreen({ eventId }: { eventId: string }) {
         <div className="receipt-rule" />
         <HashPattern hash={r.proofHash} />
         <div className="receipt-stamp">SNOOZED</div>
-        <p className="receipt-foot">
-          Demo receipt. Not a real transaction. In production, this is a verifiable on-chain / ZK proof.
-        </p>
+        {r.onChain ? (
+          <p className="receipt-foot">
+            Settled on-chain with a zero-knowledge proof.{' '}
+            {r.explorerUrl ? (
+              <a href={r.explorerUrl} target="_blank" rel="noreferrer">
+                View transaction ↗
+              </a>
+            ) : null}
+          </p>
+        ) : (
+          <p className="receipt-foot">
+            Demo receipt. Not a real transaction. In production, this is a verifiable on-chain / ZK proof.
+          </p>
+        )}
       </div>
     </Screen>
   );

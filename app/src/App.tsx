@@ -9,6 +9,7 @@ import { QuestionnaireScreen } from './screens/QuestionnaireScreen';
 import { ReceiptScreen } from './screens/ReceiptScreen';
 import { RevealScreen } from './screens/RevealScreen';
 import { ScanWakeScreen } from './screens/ScanWakeScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 import { ShamePostScreen } from './screens/ShamePostScreen';
 import { SnoozedScreen } from './screens/SnoozedScreen';
 import { StakeSetupScreen } from './screens/StakeSetupScreen';
@@ -37,6 +38,8 @@ function Router() {
       return <WakeQrScreen mode={route.mode} />;
     case 'dashboard':
       return <DashboardScreen />;
+    case 'settings':
+      return <SettingsScreen />;
     case 'alarm':
       return <AlarmScreen />;
     case 'scanWake':

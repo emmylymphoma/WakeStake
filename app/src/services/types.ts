@@ -2,9 +2,9 @@
  * Service contracts. The UI only ever talks to these interfaces (via `useServices()`),
  * so each mock in ./mock can be replaced by a real implementation independently:
  *
- *   WalletService     → injected wallet / WalletConnect (viem)
- *   StakeService      → WakeStake escrow contract (deposit + slash to charity)
- *   ProofService      → on-chain receipt / Noir ZK "Proof of Snooze"
+ *   WalletService     → injected wallet (viem), see ./chain
+ *   StakeService      → WakeStake contract: stake, ZK-proven wake, slash to charity, see ./chain
+ *   ProofService      → receipt for a slash (carries the ZK proof hash in chain mode)
  *   CopywriterService → LLM that writes the public-shame post
  *   SocialService     → X/Twitter API
  *   XAccountService   → X OAuth 2.0 (PKCE) login, tokens kept server-side
@@ -31,9 +31,25 @@ export interface WalletService {
   connect(): Promise<Wallet>;
 }
 
+/**
+ * per-snooze: each late snooze costs part of the stake (mock).
+ * all-or-nothing: the WakeStake contract, where the first late snooze sends the whole stake to charity.
+ */
+export type PenaltyModel = 'per-snooze' | 'all-or-nothing';
+
 export interface StakeService {
-  /** Lock `amount` into the stake escrow. */
-  deposit(wallet: Wallet, amount: Cents): Promise<TxResult>;
+  readonly penaltyModel: PenaltyModel;
+  /** Lock `amount` until `deadline`. `wakeCode` is what proves you got up on time. */
+  deposit(input: { wallet: Wallet; amount: Cents; deadline: Date; wakeCode: WakeCode }): Promise<TxResult>;
+  /**
+   * The user is verified up. On-chain: prove it before the deadline and roll the stake over to
+   * `nextDeadline(currentDeadline)`. Null when nothing needed to be sent.
+   */
+  wake(input: {
+    wallet: Wallet;
+    wakeCode: WakeCode;
+    nextDeadline: (after: Date) => Date | null;
+  }): Promise<TxResult | null>;
   /** Move `amount` from the stake to the charity. */
   slash(input: { wallet: Wallet; amount: Cents; charity: Charity }): Promise<TxResult>;
 }

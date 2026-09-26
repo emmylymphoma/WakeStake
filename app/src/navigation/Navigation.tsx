@@ -8,6 +8,7 @@ export type Route =
   | { name: 'questionnaire'; mode: 'onboarding' | 'manage' }
   | { name: 'wakeQr'; mode: 'onboarding' | 'manage' }
   | { name: 'dashboard' }
+  | { name: 'settings' }
   | { name: 'alarm' }
   | { name: 'scanWake' }
   | { name: 'snoozed' }

@@ -1,8 +1,10 @@
 import { writeFileSync } from 'node:fs';
 import { expect, type Page } from '@playwright/test';
 import QRCode from 'qrcode';
+import { DONT_CARE, QUESTIONS } from '../src/domain/questionnaire';
 
-export type OnboardVia = { x: string } | { questionnaire: Record<string, 'Hate it' | 'Nah' | 'Fine' | 'Love it'> };
+/** questionnaire: prompt → side label. Every other question gets “Don’t care”. */
+export type OnboardVia = { x: string } | { questionnaire: Record<string, string> };
 
 /** Walks through onboarding. Returns the path of the downloaded bathroom QR PNG. */
 export async function onboard(page: Page, downloadDir: string, via: OnboardVia = { x: 'emmysleeps' }): Promise<string> {
@@ -11,7 +13,7 @@ export async function onboard(page: Page, downloadDir: string, via: OnboardVia =
   await page.getByRole('button', { name: /Put money on it/ }).click();
 
   await page.getByRole('button', { name: 'Connect wallet' }).click();
-  await page.getByRole('button', { name: 'Lock $50' }).click();
+  await page.getByRole('button', { name: 'Stake $50' }).click();
 
   // Defaults: be up by 7:00 with 2 legal snoozes → alarm starts at 6:50.
   await expect(page.getByText('What time do you actually need to be up?')).toBeVisible();
@@ -19,7 +21,7 @@ export async function onboard(page: Page, downloadDir: string, via: OnboardVia =
   await expect(timeline).toContainText('6:50 AM');
   await expect(timeline).toContainText('6:55 AMLast legal snooze');
   await expect(timeline).toContainText('7:00 AMBe up. Snoozing now costs money');
-  await page.getByRole('button', { name: 'Arm the alarm' }).click();
+  await page.getByRole('button', { name: 'Arm & lock $50' }).click();
 
   await expect(page.getByText('Who gets your money? Not your call.')).toBeVisible();
   if ('x' in via) {
@@ -29,8 +31,9 @@ export async function onboard(page: Page, downloadDir: string, via: OnboardVia =
     await expect(page.getByText(`✓ Connected as @${via.x}`)).toBeVisible();
   } else {
     await page.getByRole('button', { name: 'Take the questionnaire' }).click();
-    for (const [statement, answer] of Object.entries(via.questionnaire)) {
-      await page.getByRole('radiogroup', { name: statement }).getByRole('radio', { name: answer }).click();
+    for (const q of QUESTIONS) {
+      const answer = via.questionnaire[q.prompt] ?? DONT_CARE;
+      await page.getByRole('radiogroup', { name: q.prompt }).getByRole('radio', { name: answer, exact: true }).click();
     }
     await page.getByRole('button', { name: 'Lock in my answers' }).click();
     await expect(page.getByText('✓ Questionnaire done')).toBeVisible();
@@ -85,6 +88,13 @@ export function writeQrY4m(path: string, text: string, size = 480): string {
   const header = `YUV4MPEG2 W${size} H${size} F30:1 Ip A1:1 C420jpeg\nFRAME\n`;
   writeFileSync(path, Buffer.concat([Buffer.from(header), y, chroma]));
   return path;
+}
+
+/** "Total lost" lives in Settings, not on the dashboard. Opens Settings, checks, comes back. */
+export async function expectTotalLost(page: Page, value: string) {
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(stat(page, 'Total lost')).toHaveText(value);
+  await page.getByRole('button', { name: 'Back' }).click();
 }
 
 /** Numeric value of a stat tile on the dashboard/penalty screen. */

@@ -7,7 +7,7 @@ export function createInitialState(): AppState {
     onboarded: false,
     profile: { displayName: '', handle: '' },
     wallet: null,
-    stake: { amount: dollars(50), penaltyPerSnooze: dollars(5), escalating: true },
+    stake: { amount: dollars(50), penaltyPerSnooze: dollars(5), escalating: true, allOrNothing: false },
     balance: 0,
     alarm: {
       wakeBy: '07:00',

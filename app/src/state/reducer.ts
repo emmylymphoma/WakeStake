@@ -26,7 +26,8 @@ export type Action =
   | { type: 'SNOOZE_RECORDED'; event: SnoozeEvent }
   | { type: 'POST_PUBLISHED'; eventId: string; post: ShamePost }
   | { type: 'WAKE' }
-  | { type: 'RESTAKE' }
+  /** The deposit went through: the full configured amount is at risk again. */
+  | { type: 'STAKE_LOCKED' }
   | { type: 'RESET' };
 
 export function reducer(state: AppState, action: Action): AppState {
@@ -34,7 +35,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'SET_PROFILE':
       return { ...state, profile: action.profile };
     case 'SET_STAKE':
-      return { ...state, stake: action.stake, wallet: action.wallet, balance: action.stake.amount };
+      return { ...state, stake: action.stake, wallet: action.wallet };
     case 'SET_ALARM':
       return { ...state, alarm: action.alarm };
     case 'SET_BENEFICIARY':
@@ -66,7 +67,7 @@ export function reducer(state: AppState, action: Action): AppState {
       };
     case 'WAKE':
       return applyWake(state);
-    case 'RESTAKE':
+    case 'STAKE_LOCKED':
       return applyRestake(state);
     case 'RESET':
       return createInitialState();

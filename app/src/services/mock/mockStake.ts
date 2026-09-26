@@ -6,10 +6,14 @@ export function createMockStakeService(latencyMs: number): StakeService {
   const tx = () => ({ txHash: `0x${randomHex(32)}`, blockNumber: ++block, network: MOCK_NETWORK });
 
   return {
-    async deposit(_wallet, amount) {
+    penaltyModel: 'per-snooze',
+    async deposit({ amount }) {
       if (amount <= 0) throw new Error('Stake must be positive');
       await delay(latencyMs);
       return tx();
+    },
+    async wake() {
+      return null;
     },
     async slash({ amount }) {
       if (amount <= 0) throw new Error('Nothing to slash');

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { onboard, stat, useLegalSnoozes, writeQrPng } from './helpers';
+import { expectTotalLost, onboard, stat, useLegalSnoozes, writeQrPng } from './helpers';
 
 test('legal snoozes → warning → charity reveal → paid snoozes; QR wakes you', async ({ page }, info) => {
   const myQr = await onboard(page, info.outputDir);
@@ -28,7 +28,7 @@ test('legal snoozes → warning → charity reveal → paid snoozes; QR wakes yo
   await page.goto('/');
   await expect(page.locator('.stake-amount')).toContainText('$50');
   await expect(stat(page, 'Snoozes')).toHaveText('2');
-  await expect(stat(page, 'Total lost')).toHaveText('$0');
+  await expectTotalLost(page, '$0');
 
   // 7:00 ring: first illegal snooze → analyse X right now → one-time reveal before charging.
   await page.getByRole('button', { name: 'View snooze timer' }).click();
@@ -85,7 +85,8 @@ test('legal snoozes → warning → charity reveal → paid snoozes; QR wakes yo
   await page.getByRole('button', { name: 'Back to dashboard' }).click();
   await expect(page.locator('.stake-amount')).toContainText('$35');
   await expect(stat(page, 'Snoozes')).toHaveText('4');
-  await expect(stat(page, 'Total lost')).toHaveText('$15');
+  await expect(stat(page, 'Total lost')).toHaveCount(0); // not on the dashboard: too depressing
+  await expectTotalLost(page, '$15');
   await expect(stat(page, 'Streak')).toHaveText('0🔥');
   await expect(page.getByText('Your charity: classified')).toBeVisible();
 
@@ -103,47 +104,29 @@ test('legal snoozes → warning → charity reveal → paid snoozes; QR wakes yo
   await expect(stat(page, 'Streak')).toHaveText('1🔥');
 });
 
-test('no X: the questionnaire decides — you fund what you rated lowest', async ({ page }, info) => {
-  const myQr = await onboard(page, info.outputDir, {
-    questionnaire: {
-      'Pineapple on pizza': 'Love it',
-      Mondays: 'Hate it',
-      Cats: 'Fine',
-      Dogs: 'Love it',
-      'Crypto bros': 'Nah',
-      'Early mornings': 'Nah',
-    },
-  });
+test('no X: the questionnaire decides — you fund the side you’re against', async ({ page }, info) => {
+  const myQr = await onboard(page, info.outputDir, { questionnaire: { 'Do you like vegans?': 'No' } });
   await expect(page.getByText('Picked from your questionnaire')).toBeVisible();
 
   await useLegalSnoozes(page);
   await page.getByRole('button', { name: 'Snooze · −$5' }).click();
   await expect(page.getByText('Re-reading your questionnaire')).toBeVisible();
-  await expect(page.getByTestId('revealed-charity')).toContainText('Friends of Mondays');
-  await expect(page.getByText('You rated “Mondays”: Hate it')).toBeVisible();
+  await expect(page.getByTestId('revealed-charity')).toContainText('PETA');
+  await expect(page.getByText('You said “No” on “Do you like vegans?”')).toBeVisible();
 
   // Getting up at the warning costs nothing.
   await page.getByRole('button', { name: /Fine, I’m up · scan QR/ }).click();
   await page.getByTestId('qr-photo-input').setInputFiles(myQr);
   await expect(page.getByText('Up. Within the rules.')).toBeVisible();
   await page.getByRole('button', { name: 'Back to dashboard' }).click();
-  await expect(stat(page, 'Total lost')).toHaveText('$0');
+  await expectTotalLost(page, '$0');
 });
 
 test('no X linked: the shame post stays private', async ({ page }, info) => {
-  await onboard(page, info.outputDir, {
-    questionnaire: {
-      'Pineapple on pizza': 'Hate it',
-      Mondays: 'Fine',
-      Cats: 'Fine',
-      Dogs: 'Fine',
-      'Crypto bros': 'Fine',
-      'Early mornings': 'Fine',
-    },
-  });
+  await onboard(page, info.outputDir, { questionnaire: { Guns: 'Ban them' } });
   await useLegalSnoozes(page);
   await page.getByRole('button', { name: 'Snooze · −$5' }).click();
-  await expect(page.getByTestId('revealed-charity')).toContainText('Hawaiian Pizza Defense Fund');
+  await expect(page.getByTestId('revealed-charity')).toContainText('NRA Foundation');
   await page.getByRole('button', { name: 'Snooze anyway · −$5' }).click();
   await page.getByRole('button', { name: /public shame/ }).click();
   await expect(page.getByText('@(no X linked)')).toBeVisible();
@@ -160,7 +143,7 @@ test('using only legal snoozes keeps the streak alive', async ({ page }, info) =
   await expect(page.getByText('Up. Within the rules.')).toBeVisible();
   await page.getByRole('button', { name: 'Back to dashboard' }).click();
   await expect(stat(page, 'Streak')).toHaveText('1🔥');
-  await expect(stat(page, 'Total lost')).toHaveText('$0');
+  await expectTotalLost(page, '$0');
 });
 
 test('the alarm rings again by itself after exactly 5 minutes', async ({ page }, info) => {

@@ -7,11 +7,13 @@ export const MAX_ESCALATION_STEPS = 5;
 /**
  * Penalty for the snooze at `sessionSnoozes` (0-based) in the current session.
  * The first `legalSnoozes` are free; escalation counts from the first paid one.
+ * All-or-nothing stakes lose everything on the first paid snooze.
  * Never more than what's left in the stake.
  */
 export function quotePenalty(stake: StakeConfig, balance: Cents, sessionSnoozes: number, legalSnoozes: number): Cents {
   const paidIndex = sessionSnoozes - legalSnoozes;
   if (paidIndex < 0) return 0;
+  if (stake.allOrNothing) return Math.max(0, balance);
   const steps = stake.escalating ? Math.min(paidIndex, MAX_ESCALATION_STEPS) : 0;
   return Math.max(0, Math.min(balance, stake.penaltyPerSnooze * 2 ** steps));
 }
@@ -125,7 +127,7 @@ export function applyWake(state: AppState): AppState {
   };
 }
 
-/** Top the stake back up to the configured amount. */
+/** The stake was (re)deposited: back up to the configured amount. */
 export function applyRestake(state: AppState): AppState {
   return { ...state, balance: state.stake.amount };
 }

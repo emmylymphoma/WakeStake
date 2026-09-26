@@ -19,8 +19,11 @@ export interface XAccount {
   connectedAt: string;
 }
 
-/** statementId → score from -2 (hate it) to +2 (love it). */
-export type QuestionnaireAnswers = Record<string, number>;
+/** Side A, side B, or "don't care" on one questionnaire topic. */
+export type Stance = 'a' | 'b' | 'meh';
+
+/** questionId → the side you took. */
+export type QuestionnaireAnswers = Record<string, Stance>;
 
 /**
  * What WakeStake uses to pick a charity you'd hate. The user never picks the charity;
@@ -58,6 +61,8 @@ export interface StakeConfig {
   penaltyPerSnooze: Cents;
   /** If true, each extra paid snooze in the same alarm session doubles the penalty. */
   escalating: boolean;
+  /** The on-chain contract can't do partial slashes: the first paid snooze costs the whole stake. */
+  allOrNothing: boolean;
 }
 
 export interface AlarmConfig {
@@ -87,6 +92,12 @@ export interface TxResult {
   txHash: string;
   blockNumber: number;
   network: string;
+  /** A real transaction (chain mode), not a mock. */
+  onChain?: boolean;
+  /** Block explorer link, if the chain has one. */
+  explorerUrl?: string;
+  /** Hash of the ZK proof sent with the transaction, if any. */
+  proofHash?: string;
 }
 
 /** Verifiable receipt that a snooze happened and was paid for. */
@@ -102,6 +113,8 @@ export interface ProofOfSnooze {
   walletAddress: string;
   snoozeNumber: number;
   proofHash: string;
+  onChain?: boolean;
+  explorerUrl?: string;
 }
 
 export interface ShamePost {
