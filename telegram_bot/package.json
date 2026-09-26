@@ -1,0 +1,19 @@
+{
+  "name": "wakestake-telegram-bot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx bot.ts",
+    "dev": "DEV_MODE=1 tsx watch bot.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "grammy": "^1.46.0",
+    "viem": "^2.56.9"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
