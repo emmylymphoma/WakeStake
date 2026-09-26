@@ -83,6 +83,13 @@ export async function createWakeStakeTestContext() {
     const groupRegistry = await viem.getContractAt("EnsV2UserRegistry", await donationGroup.read.registry());
     // a group that can return 0 from donationAddress(), which a real DonationGroup can't
     const mockGroup = await viem.deployContract("MockDonationAddressProvider", [charity.account.address]);
+    // a charity's Uniswap router that wants the staked token itself, so donate() forwards without swapping
+    // (swaps against the real Uniswap are in test/DonationRouter.ts, on a Sepolia fork)
+    const donationRouter = await viem.deployContract("DonationRouter", [
+      zeroAddress,
+      charity.account.address,
+      token.address,
+    ]);
     return {
       wakeStake,
       verifier,
@@ -93,17 +100,21 @@ export async function createWakeStakeTestContext() {
       donationGroup,
       groupRegistry,
       mockGroup,
+      donationRouter,
     };
   }
 
-  /** @param donateTo what the stake is committed to: the charity wallet, a factory-made DonationGroup, or the mock group */
-  async function setup({ donateTo = "charity" }: { donateTo?: "charity" | "donationGroup" | "mockGroup" } = {}) {
+  type DonateTo = "charity" | "donationGroup" | "mockGroup" | "donationRouter";
+
+  /** @param donateTo what the stake is committed to: the charity wallet, a factory-made DonationGroup, the mock group, or a DonationRouter */
+  async function setup({ donateTo = "charity" }: { donateTo?: DonateTo } = {}) {
     const fixture = await networkHelpers.loadFixture(deployFixture);
-    const { wakeStake, token, donationGroup, mockGroup } = fixture;
+    const { wakeStake, token, donationGroup, mockGroup, donationRouter } = fixture;
     const donationAddress = {
       charity: charity.account.address,
       donationGroup: donationGroup.address,
       mockGroup: mockGroup.address,
+      donationRouter: donationRouter.address,
     }[donateTo];
     const stakeDetails: StakeDetails = {
       token: addressToField(token.address),

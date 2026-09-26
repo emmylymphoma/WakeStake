@@ -1,10 +1,19 @@
 {
-  "WakeStakeModule#PoseidonT3": "0xdDfF2a61bDCeD14669D5AaBC8DF9087839d5942B",
-  "WakeStakeModule#PoseidonT4": "0xA6c1A2d728880d77F6c3030b1fd9549292E0991A",
-  "WakeStakeModule#RelationsLib": "0xa0568b6194082Cdb4b3de7Fad45D5447cDD30240",
-  "WakeStakeModule#ZKTranscriptLib": "0x02078800187B4E831479775c4e240064578602aE",
-  "WakeStakeModule#HonkVerifier": "0xe241fe1088738e83057F69b65c19912684ee0B78",
-  "WakeStakeModule#LeanIMT": "0x8817422387ac287Af6D0735678F53ed21308Fd80",
-  "WakeStakeModule#WakeStake": "0xcF16ab3255EEB05ef8fC57932f6470FEaBA8deAF",
-  "TestTokenModule#MockERC20": "0xc755dBaA628458F76149c682D3ba0Cd0CCf62053"
+  "WakeStakeModule#EnsV2UserRegistry": "0xa80338aaa8d23831cea25e858d1774534abb0263",
+  "WakeStakeModule#EnsV2VerifiableFactory": "0x9e726eb570beb6bceb495ab8cda7df517d4e841c",
+  "WakeStakeModule#PoseidonT3": "0x4225690Cd38241A369e61C787e3aC69D603BA222",
+  "WakeStakeModule#PoseidonT4": "0x9822Cf32dA5Bf4C26a88F1be87d44B48faDd1618",
+  "WakeStakeModule#StakeOwnershipRelationsLib": "0x7d8EDBBc0c0b042369a8aA65e0253D03227fb4fC",
+  "WakeStakeModule#StakeOwnershipZKTranscriptLib": "0xAfD21a27d377AD6187Bf9ab9413d4168B80dAcf4",
+  "WakeStakeModule#WakeStakeRelationsLib": "0x444376259ee8BB1d3ff42acb1aAaE1B8a5dB4347",
+  "WakeStakeModule#WakeStakeZKTranscriptLib": "0x90e8BaED591B8325462803175c101bC643577d22",
+  "WakeStakeModule#LeanIMT": "0x57a0742DcA45D1fbCf0f070578588323ae0C3817",
+  "WakeStakeModule#StakeOwnershipVerifier": "0x47b0D80a103CE559219d1777CE7291c19a6F4164",
+  "WakeStakeModule#WakeStakeVerifier": "0x4e0B3227d033B6FF386aB8206B44eA388d4939AD",
+  "WakeStakeModule#WakeStakeRegistry": "0x12fE736335F0835f5E2c884BC5E4BD7801385E08",
+  "WakeStakeModule#WakeStake": "0x282a87d2B9e3880a9C9149A6FF9ef827B0f5e5f3",
+  "WakeStakeModule#DonationGroupFactory": "0x89A37Dd03041BeC62Da0158c97Be6B20357D87Df",
+  "TestTokenModule#MockERC20": "0xD88E02ACFE7BEe003de28Aaf2330e8ec05857201",
+  "DonationRouterModule#CharityToken": "0x735F7ee6F0a603e8200f2F4a8b2F490F29D2C0ef",
+  "DonationRouterModule#DonationRouter": "0x1fB9B89A23db77dB03B3F720Dc385d179F817ED5"
 }

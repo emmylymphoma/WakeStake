@@ -57,7 +57,12 @@ export async function createPoolWithLiquidity(
 ) {
   const account = walletClient.account!;
   const [token0, token1] = BigInt(tokenA) < BigInt(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA];
-  const send = async (hash: Promise<`0x${string}`>) => publicClient.waitForTransactionReceipt({ hash: await hash });
+  // waitForTransactionReceipt resolves for reverted transactions too, so check the status
+  const send = async (hash: Promise<`0x${string}`>) => {
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: await hash });
+    if (receipt.status !== "success") throw new Error(`transaction reverted: ${receipt.transactionHash}`);
+    return receipt;
+  };
 
   for (const token of [token0, token1]) {
     await send(

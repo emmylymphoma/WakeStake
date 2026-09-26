@@ -24,8 +24,16 @@ export interface ChainConfig {
   mintTestTokens: boolean;
 }
 
-const CHAINS: Record<string, { chain: Chain; wakeStake?: string }> = {
-  sepolia: { chain: sepolia, wakeStake: sepoliaDeployment['WakeStakeModule#WakeStake'] },
+// Sepolia defaults come from the Ignition deployment, so a redeploy needs no env changes.
+// Typed loosely: the JSON only has the keys of whatever was deployed last.
+const deployed = sepoliaDeployment as Record<string, string | undefined>;
+const CHAINS: Record<string, { chain: Chain; wakeStake?: string; token?: string; donationRouter?: string }> = {
+  sepolia: {
+    chain: sepolia,
+    wakeStake: deployed['WakeStakeModule#WakeStake'],
+    token: deployed['TestTokenModule#MockERC20'],
+    donationRouter: deployed['DonationRouterModule#DonationRouter'],
+  },
   localhost: { chain: hardhat },
 };
 
@@ -41,14 +49,16 @@ export function readChainConfig(env: Env = import.meta.env as Env): ChainConfig 
     if (!value) throw new Error(`${key} is required when VITE_CHAIN is set (see app/.env.example)`);
     return value;
   };
+  // A DonationRouter is the donation address; it forwards to the charity after a Uniswap swap.
+  // VITE_DONATION_ADDRESS (a plain charity or a DonationGroup) overrides the deployed router.
+  const donationRouter = env.VITE_DONATION_ROUTER || (env.VITE_DONATION_ADDRESS ? undefined : known.donationRouter);
   return {
     chain: known.chain,
     rpcUrl: required('VITE_RPC_URL', known.chain.rpcUrls.default.http[0]),
     wakeStake: getAddress(required('VITE_WAKESTAKE_ADDRESS', known.wakeStake)),
-    token: getAddress(required('VITE_TOKEN_ADDRESS')),
-    // A DonationRouter is the donation address; it forwards to the charity after a Uniswap swap.
-    donation: getAddress(env.VITE_DONATION_ROUTER || required('VITE_DONATION_ADDRESS')),
-    donationRouter: env.VITE_DONATION_ROUTER
+    token: getAddress(required('VITE_TOKEN_ADDRESS', known.token)),
+    donation: getAddress(donationRouter || required('VITE_DONATION_ADDRESS')),
+    donationRouter: donationRouter
       ? {
           quoter: getAddress(env.VITE_UNISWAP_QUOTER || UNISWAP_SEPOLIA.quoterV2),
           poolFee: Number(env.VITE_UNISWAP_POOL_FEE || POOL_FEE),

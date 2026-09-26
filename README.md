@@ -132,14 +132,13 @@ git config --global user.email "<email on your github account>"
 ```
 
 # deployments
-sepolia, with fee (10%), `lose` and Ownable. owner: `0x6E6E6f5B804ce0874939D5BFcfe6f5bCbABAFB8E`  
-WakeStake: [0xcF16ab3255EEB05ef8fC57932f6470FEaBA8deAF](https://sepolia.etherscan.io/address/0xcF16ab3255EEB05ef8fC57932f6470FEaBA8deAF#code)  
-verifier (honk bb): [0xe241fe1088738e83057F69b65c19912684ee0B78](https://sepolia.etherscan.io/address/0xe241fe1088738e83057F69b65c19912684ee0B78#code)  
-libraries: 
-```sh
-"PoseidonT3": "0xdDfF2a61bDCeD14669D5AaBC8DF9087839d5942B",
-"PoseidonT4": "0xA6c1A2d728880d77F6c3030b1fd9549292E0991A",
-"RelationsLib": "0xa0568b6194082Cdb4b3de7Fad45D5447cDD30240",
-"ZKTranscriptLib": "0x02078800187B4E831479775c4e240064578602aE",
-"LeanIMT": "0x8817422387ac287Af6D0735678F53ed21308Fd80",
-```
+sepolia, fee 10%. the source of truth is [ignition/deployments/chain-11155111/deployed_addresses.json](ignition/deployments/chain-11155111/deployed_addresses.json), the app reads it directly.
+admin: whoever owns `admin.wakestake.eth` (currently `0x6E6E6f5B804ce0874939D5BFcfe6f5bCbABAFB8E`)
+
+WakeStake: [0x282a87d2B9e3880a9C9149A6FF9ef827B0f5e5f3](https://sepolia.etherscan.io/address/0x282a87d2B9e3880a9C9149A6FF9ef827B0f5e5f3#code)  
+DonationGroupFactory: [0x89A37Dd03041BeC62Da0158c97Be6B20357D87Df](https://sepolia.etherscan.io/address/0x89A37Dd03041BeC62Da0158c97Be6B20357D87Df#code)  
+wakestake.eth ENSv2 registry: [0x12fE736335F0835f5E2c884BC5E4BD7801385E08](https://sepolia.etherscan.io/address/0x12fE736335F0835f5E2c884BC5E4BD7801385E08#code), see [wakestake.eth in the ENS explorer](https://explorer.ens.dev/name/wakestake.eth)  
+DonationRouter (demo charity, swaps on Uniswap): [0x1fB9B89A23db77dB03B3F720Dc385d179F817ED5](https://sepolia.etherscan.io/address/0x1fB9B89A23db77dB03B3F720Dc385d179F817ED5#code)  
+staked demo token wUSD: [0xD88E02ACFE7BEe003de28Aaf2330e8ec05857201](https://sepolia.etherscan.io/address/0xD88E02ACFE7BEe003de28Aaf2330e8ec05857201#code), charity token cUSD: [0x735F7ee6F0a603e8200f2F4a8b2F490F29D2C0ef](https://sepolia.etherscan.io/address/0x735F7ee6F0a603e8200f2F4a8b2F490F29D2C0ef#code)  
+verifiers (honk bb): WakeStakeVerifier [0x4e0B3227d033B6FF386aB8206B44eA388d4939AD](https://sepolia.etherscan.io/address/0x4e0B3227d033B6FF386aB8206B44eA388d4939AD#code), StakeOwnershipVerifier [0x47b0D80a103CE559219d1777CE7291c19a6F4164](https://sepolia.etherscan.io/address/0x47b0D80a103CE559219d1777CE7291c19a6F4164#code)  
+ENS (theirs): VerifiableFactory `0x9e726eb570beb6bceb495ab8cda7df517d4e841c`, UserRegistry implementation `0xa80338aaa8d23831cea25e858d1774534abb0263`

@@ -178,7 +178,7 @@ describe("WakeStake", async function () {
      * donationAddress() returns, oversleeps, and a group member withdraws.
      */
     async function loseStakeToGroup(
-      donateTo: "donationGroup" | "mockGroup",
+      donateTo: "donationGroup" | "mockGroup" | "donationRouter",
       expectedDonationAddress: "charity" | "group",
       configureMockGroup: (mockGroup: Setup["mockGroup"]) => Promise<unknown> = async () => {},
     ) {
@@ -222,6 +222,23 @@ describe("WakeStake", async function () {
 
       assert.equal(await token.read.balanceOf([group.address]), STAKE_AMOUNT - LOSE_FEE);
       assert.equal(await token.read.balanceOf([charity.account.address]), 0n);
+    });
+
+    it("pays a charity's DonationRouter, which then forwards to the charity", async function () {
+      // the router keeps lost stakes until donate() swaps them, so donationAddress() is the router itself
+      const { token, group: router } = await loseStakeToGroup("donationRouter", "group");
+      assert.equal(await token.read.balanceOf([router.address]), STAKE_AMOUNT - LOSE_FEE);
+
+      // the charity wants the staked token, so no Uniswap swap is needed
+      const donationRouter = await viem.getContractAt("DonationRouter", router.address);
+      await viem.assertions.emitWithArgs(
+        donationRouter.write.donate([token.address, 3000, STAKE_AMOUNT - LOSE_FEE]),
+        donationRouter,
+        "Donated",
+        [token.address, STAKE_AMOUNT - LOSE_FEE, STAKE_AMOUNT - LOSE_FEE],
+      );
+      assert.equal(await token.read.balanceOf([charity.account.address]), STAKE_AMOUNT - LOSE_FEE);
+      assert.equal(await token.read.balanceOf([router.address]), 0n);
     });
   });
 

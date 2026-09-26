@@ -3,6 +3,7 @@ pragma solidity ^0.8.34;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IDonationAddressProvider} from "./interfaces/IDonationAddressProvider.sol";
 
 /// @dev The part of Uniswap's SwapRouter02 (IV3SwapRouter) we use. No deadline field in this version.
 interface ISwapRouter02 {
@@ -27,7 +28,7 @@ interface ISwapRouter02 {
  * The slash and the swap are deliberately separate: if a swap can't happen (no liquidity,
  * weird token), the slash still goes through and the tokens wait here until it can.
  */
-contract DonationRouter {
+contract DonationRouter is IDonationAddressProvider {
     using SafeERC20 for IERC20;
 
     ISwapRouter02 public immutable swapRouter;
@@ -43,6 +44,12 @@ contract DonationRouter {
       swapRouter = ISwapRouter02(_swapRouter);
       charity = _charity;
       donationToken = _donationToken;
+    }
+
+    /// @notice WakeStake asks this when a stake committed to this router is lost: pay the router, `donate` swaps later.
+    /// A DonationGroup can also vote this router in as its donationAddress.
+    function donationAddress() external view returns (address) {
+      return address(this);
     }
 
     /**

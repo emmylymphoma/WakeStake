@@ -33,9 +33,15 @@ const { donationRouter, charityToken } = await ignition.deploy(DonationRouterMod
 });
 console.log(`DonationRouter ${donationRouter.address} → charity ${charity}, receives cUSD ${charityToken.address}`);
 
+// Safe to rerun: only mints what's missing, and createPoolWithLiquidity adds to an existing pool.
 const stakeToken = await viem.getContractAt("MockERC20", stakeTokenAddress);
 for (const token of [stakeToken, charityToken]) {
-  await publicClient.waitForTransactionReceipt({ hash: await token.write.mint([deployer.account.address, LIQUIDITY]) });
+  const balance = await token.read.balanceOf([deployer.account.address]);
+  if (balance >= LIQUIDITY) continue;
+  const receipt = await publicClient.waitForTransactionReceipt({
+    hash: await token.write.mint([deployer.account.address, LIQUIDITY - balance]),
+  });
+  if (receipt.status !== "success") throw new Error(`mint reverted: ${receipt.transactionHash}`);
 }
 await createPoolWithLiquidity(publicClient, deployer, stakeToken.address, charityToken.address, LIQUIDITY);
 console.log(`Uniswap v3 pool wUSD/cUSD (0.3%) funded with ${LIQUIDITY / 10n ** 18n} of each`);
