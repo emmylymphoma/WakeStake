@@ -6,7 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "ens:register": "hardhat --network sepolia run scripts/registerEnsName.ts",
-    "build:verifier": "bash circuits/buildVerifiers.sh"
+    "build:verifier": "bash circuits/buildVerifiers.sh",
+    "ens:submodules": "git submodule update --init lib/contracts-v2 && git -C lib/contracts-v2 submodule update --init --depth 1 contracts/lib/openzeppelin-contracts contracts/lib/openzeppelin-contracts-upgradeable contracts/lib/verifiable-factory contracts/lib/ens-contracts && git -C lib/contracts-v2/contracts/lib/verifiable-factory submodule update --init --depth 1 lib/openzeppelin-contracts && git -C lib/contracts-v2/contracts/lib/openzeppelin-contracts-upgradeable submodule update --init --depth 1 lib/openzeppelin-contracts",
+    "ens:link": "hardhat --network sepolia run scripts/linkEnsRegistry.ts"
   },
   "keywords": [],
   "author": "",

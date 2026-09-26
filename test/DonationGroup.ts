@@ -7,9 +7,9 @@ import {
   generateStakeOwnershipProof,
   stakeOwnershipPublicInputs,
 } from "../src/circuit.js";
-import { zeroAddress, type Address } from "viem";
+import { hexToBigInt, labelhash, zeroAddress, type Address } from "viem";
 
-import { DAY, HOUR } from "../src/constants.js";
+import { DAY, ENS_ROLES, HOUR } from "../src/constants.js";
 import { addressToField, type NoteWithSecret } from "../src/note.js";
 import {
   createWakeStakeTestContext,
@@ -125,6 +125,37 @@ describe("DonationGroup", async function () {
       );
     }
     assert.equal(await donationGroup.read.isMember([groupMember.account.address]), false);
+  });
+
+  it("admin is whoever owns admin.<label>.wakestake.eth, so transferring the name hands over admin", async function () {
+    const { donationGroup, groupRegistry } = await setup();
+    const adminLabelId = hexToBigInt(labelhash("admin"));
+    const adminTokenId = await groupRegistry.read.findTokenId(["admin"]);
+
+    // a plain ERC1155 transfer of the ENS name, allowed because the name has ROLE_CAN_TRANSFER_ADMIN
+    await groupRegistry.write.safeTransferFrom(
+      [groupAdmin.account.address, groupMember.account.address, adminTokenId, 1n, "0x"],
+      { account: groupAdmin.account },
+    );
+
+    sameAddress(await donationGroup.read.admin(), groupMember.account.address);
+    // the name's Enhanced Access Control roles moved with it
+    for (const [account, hasRole] of [[groupMember, true], [groupAdmin, false]] as const) {
+      assert.equal(
+        await groupRegistry.read.hasRoles([adminLabelId, ENS_ROLES.CAN_TRANSFER_ADMIN, account.account.address]),
+        hasRole,
+      );
+    }
+    await viem.assertions.revertWith(
+      donationGroup.write.addMember([owner.account.address], { account: groupAdmin.account }),
+      "only the group admin can add members",
+    );
+    await viem.assertions.emitWithArgs(
+      donationGroup.write.addMember([owner.account.address], { account: groupMember.account }),
+      donationGroup,
+      "MemberAdded",
+      [owner.account.address],
+    );
   });
 
   it("formats public inputs in the same order as the circuit and src/circuit.ts", async function () {

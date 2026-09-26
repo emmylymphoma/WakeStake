@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 import type { CompiledCircuit } from "@noir-lang/noir_js";
 import { network } from "hardhat";
-import type { Address } from "viem";
+import { zeroAddress, type Address } from "viem";
 
 import WakeStakeModule from "../../ignition/modules/WakeStake.js";
 import { createTimestampWindow, generateProof } from "../../src/circuit.js";
@@ -26,6 +26,8 @@ export const wakeStakeCircuit = loadCircuit("wakestake");
 export const stakeOwnershipCircuit = loadCircuit("stake_ownership");
 
 export const STAKE_AMOUNT = 100n * 10n ** 18n;
+/** the fixture group is <GROUP_LABEL>.wakestake.eth */
+export const GROUP_LABEL = "nightowls";
 export const FEE_PERCENTAGE = 5n;
 export const LOSE_FEE = (STAKE_AMOUNT * FEE_PERCENTAGE) / 100n;
 
@@ -41,39 +43,63 @@ export async function createWakeStakeTestContext() {
   // more stakers with their own funds, for votes that need several members
   const extraStakers = allWallets.slice(8, 12);
 
+  /** ENSv2's own contracts from the lib/contracts-v2 submodule, which ENS has deployed on Sepolia already. */
+  async function deployEnsV2() {
+    const labelStore = await viem.deployContract("EnsV2LabelStore", [zeroAddress]);
+    const userRegistryImplementation = await viem.deployContract("EnsV2UserRegistry", [
+      labelStore.address,
+      contractOwner.account.address,
+    ]);
+    const verifiableFactory = await viem.deployContract("EnsV2VerifiableFactory");
+    return { userRegistryImplementation, verifiableFactory };
+  }
+
   async function deployFixture() {
-    const { wakeStake, verifier, stakeOwnershipVerifier, donationGroupFactory } = await ignition.deploy(
-      WakeStakeModule,
-      {
+    const ens = await deployEnsV2();
+    const { wakeStake, verifier, stakeOwnershipVerifier, donationGroupFactory, wakeStakeRegistry } =
+      await ignition.deploy(WakeStakeModule, {
         parameters: {
           WakeStakeModule: {
             feePayoutAddress: feeCollector.account.address,
             feePercentage: FEE_PERCENTAGE,
+            ensVerifiableFactory: ens.verifiableFactory.address,
+            ensUserRegistryImplementation: ens.userRegistryImplementation.address,
           },
         },
-      },
-    );
+      });
     const token = await viem.deployContract("MockERC20", ["Mock", "MCK"]);
     for (const staker of [owner, ...extraStakers]) {
       await token.write.mint([staker.account.address, STAKE_AMOUNT]);
       await token.write.approve([wakeStake.address, STAKE_AMOUNT], { account: staker.account });
     }
     // groups are created here, since loadFixture reverts anything deployed before it
-    const createArgs = [charity.account.address, token.address, STAKE_AMOUNT] as const;
+    const createArgs = [GROUP_LABEL, charity.account.address, token.address, STAKE_AMOUNT] as const;
     const { result: donationGroupAddress } = await donationGroupFactory.simulate.createDonationGroup(createArgs, {
       account: groupAdmin.account.address,
     });
     await donationGroupFactory.write.createDonationGroup(createArgs, { account: groupAdmin.account });
     const donationGroup = await viem.getContractAt("DonationGroup", donationGroupAddress);
+    // ENS's UserRegistry ABI, for <GROUP_LABEL>.wakestake.eth's registry
+    const groupRegistry = await viem.getContractAt("EnsV2UserRegistry", await donationGroup.read.registry());
     // a group that can return 0 from donationAddress(), which a real DonationGroup can't
     const mockGroup = await viem.deployContract("MockDonationAddressProvider", [charity.account.address]);
-    return { wakeStake, verifier, stakeOwnershipVerifier, donationGroupFactory, token, donationGroup, mockGroup };
+    return {
+      wakeStake,
+      verifier,
+      stakeOwnershipVerifier,
+      donationGroupFactory,
+      wakeStakeRegistry,
+      token,
+      donationGroup,
+      groupRegistry,
+      mockGroup,
+    };
   }
 
   /** @param donateTo what the stake is committed to: the charity wallet, a factory-made DonationGroup, or the mock group */
   async function setup({ donateTo = "charity" }: { donateTo?: "charity" | "donationGroup" | "mockGroup" } = {}) {
-    const { wakeStake, verifier, stakeOwnershipVerifier, donationGroupFactory, token, donationGroup, mockGroup } =
-      await networkHelpers.loadFixture(deployFixture);
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    const { wakeStake, token, donationGroup, mockGroup } = fixture;
     const donationAddress = {
       charity: charity.account.address,
       donationGroup: donationGroup.address,
@@ -166,13 +192,7 @@ export async function createWakeStakeTestContext() {
     }
 
     return {
-      wakeStake,
-      verifier,
-      stakeOwnershipVerifier,
-      donationGroupFactory,
-      token,
-      donationGroup,
-      mockGroup,
+      ...fixture,
       stakeDetails,
       syncMerkleTree,
       nextTimestampWindow,

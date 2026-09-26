@@ -23,4 +23,25 @@ export const ENS_SEPOLIA = {
   ethRegistry: "0x657ea849311d3d5823348dded7c2aaafb3ede09e",
   /** 6 decimals, free public mint, accepted by the registrar's price oracle. */
   mockUsdc: "0x16f95d91dba7da3aca778ec053df0ff6c6a8aa8e",
+  /** deploys registry proxies, e.g. the wakestake.eth registry and every group's registry */
+  verifiableFactory: "0x9e726eb570beb6bceb495ab8cda7df517d4e841c",
+  /** what those registry proxies point to */
+  userRegistryImplementation: "0xa80338aaa8d23831cea25e858d1774534abb0263",
+} as const;
+
+/**
+ * ENSv2 Enhanced Access Control roles, from RegistryRolesLib and EACBaseRolesLib in lib/contracts-v2.
+ * Each role is a nybble, and its admin role (which can grant it) is the same bit shifted up by 128.
+ */
+export const ENS_ROLES = {
+  REGISTRAR: 1n << 0n,
+  RENEW: 1n << 16n,
+  SET_SUBREGISTRY: 1n << 20n,
+  SET_RESOLVER: 1n << 24n,
+  UNREGISTER: 1n << 12n,
+  SET_PARENT: 1n << 8n,
+  /** only ever an admin role: whoever holds it on a name can transfer that name */
+  CAN_TRANSFER_ADMIN: (1n << 28n) << 128n,
+  /** every role and every admin role */
+  ALL: BigInt("0x" + "1".repeat(64)),
 } as const;

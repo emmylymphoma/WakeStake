@@ -1,4 +1,7 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+import { hexToBigInt, labelhash } from "viem";
+
+import { ENS_ROLES, ENS_ROOT_LABEL, ENS_SEPOLIA } from "../../src/constants.js";
 
 export default buildModule("WakeStakeModule", (m) => {
   // LeanIMT hashes tree nodes with PoseidonT3, WakeStake hashes leaves with PoseidonT4.
@@ -32,7 +35,49 @@ export default buildModule("WakeStakeModule", (m) => {
     libraries: { LeanIMT: leanIMT, PoseidonT4: poseidonT4 },
   });
 
-  const donationGroupFactory = m.contract("DonationGroupFactory", [wakeStake, stakeOwnershipVerifier]);
+  // ENSv2: defaults to ENS's Sepolia deployment, tests pass locally deployed ones (see contracts/ens/EnsV2.sol)
+  const verifiableFactory = m.contractAt(
+    "EnsV2VerifiableFactory",
+    m.getParameter("ensVerifiableFactory", ENS_SEPOLIA.verifiableFactory),
+  );
+  const userRegistryImplementation = m.contractAt(
+    "EnsV2UserRegistry",
+    m.getParameter("ensUserRegistryImplementation", ENS_SEPOLIA.userRegistryImplementation),
+  );
 
-  return { wakeStake, verifier, stakeOwnershipVerifier, leanIMT, poseidonT3, poseidonT4, donationGroupFactory };
+  // the registry of *.wakestake.eth, with the deployer (the owner of wakestake.eth) holding every role.
+  // On Sepolia, point wakestake.eth at it with `pnpm ens:link`.
+  const deployWakeStakeRegistry = m.call(verifiableFactory, "deployProxy", [
+    userRegistryImplementation,
+    hexToBigInt(labelhash(ENS_ROOT_LABEL)),
+    m.encodeFunctionCall(userRegistryImplementation, "initialize", [
+      [{ account: m.getAccount(0), roleBitmap: ENS_ROLES.ALL }],
+    ]),
+  ]);
+  const wakeStakeRegistry = m.contractAt(
+    "EnsV2UserRegistry",
+    m.readEventArgument(deployWakeStakeRegistry, "ProxyDeployed", "proxyAddress"),
+    { id: "WakeStakeRegistry" },
+  );
+
+  const donationGroupFactory = m.contract("DonationGroupFactory", [
+    wakeStake,
+    stakeOwnershipVerifier,
+    wakeStakeRegistry,
+    verifiableFactory,
+    userRegistryImplementation,
+  ]);
+  // only the factory can hand out <group>.wakestake.eth, so only factory-made groups get a name
+  m.call(wakeStakeRegistry, "grantRootRoles", [ENS_ROLES.REGISTRAR, donationGroupFactory]);
+
+  return {
+    wakeStake,
+    verifier,
+    stakeOwnershipVerifier,
+    leanIMT,
+    poseidonT3,
+    poseidonT4,
+    donationGroupFactory,
+    wakeStakeRegistry,
+  };
 });

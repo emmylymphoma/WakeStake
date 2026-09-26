@@ -1,6 +1,12 @@
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
 import { configVariable, defineConfig } from "hardhat/config";
 
+// ENSv2's registry contracts (lib/contracts-v2 submodule) pin 0.8.25, built with ENS's own settings
+const ENSV2_COMPILER = {
+  version: "0.8.25",
+  settings: { optimizer: { enabled: true, runs: 1000 }, evmVersion: "cancun" },
+};
+
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
   solidity: {
@@ -12,16 +18,21 @@ export default defineConfig({
     ],
     profiles: {
       default: {
-        version: "0.8.34",
+        compilers: [{ version: "0.8.34" }, ENSV2_COMPILER],
       },
       production: {
-        version: "0.8.34",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
+        compilers: [
+          {
+            version: "0.8.34",
+            settings: {
+              optimizer: {
+                enabled: true,
+                runs: 200,
+              },
+            },
           },
-        },
+          ENSV2_COMPILER,
+        ],
       },
     },
   },

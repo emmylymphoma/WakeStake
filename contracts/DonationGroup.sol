@@ -2,23 +2,36 @@
 pragma solidity ^0.8.34;
 
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {IPermissionedRegistry} from "@ensdomains/contracts-v2/registry/interfaces/IPermissionedRegistry.sol";
+import {IRegistry} from "@ensdomains/contracts-v2/registry/interfaces/IRegistry.sol";
+import {RegistryRolesLib} from "@ensdomains/contracts-v2/registry/libraries/RegistryRolesLib.sol";
 import {IDonationAddressProvider} from "./interfaces/IDonationAddressProvider.sol";
 import {IStakeOwnershipVerifier} from "./interfaces/IStakeOwnershipVerifier.sol";
 import {IWakeStake} from "./interfaces/IWakeStake.sol";
 
-/// @notice A friend group. Stakers commit to this contract as their donation address, and when they
-/// oversleep WakeStake pays `donationAddress` directly. Members prove with a stake_ownership proof that
+/// @notice A friend group, named `<label>.wakestake.eth`. Stakers commit to this contract as their donation address,
+/// and when they oversleep WakeStake pays `donationAddress` directly. Members prove with a stake_ownership proof that
 /// they stake at least `minStakeAmount` of `stakeToken` to this group, without revealing which stake.
 /// Deployed as clones by DonationGroupFactory.
-contract DonationGroup is IDonationAddressProvider, Initializable {
+/// @dev ERC1155Holder: ENSv2 names are ERC1155 tokens, and this contract owns `<label>.wakestake.eth`
+contract DonationGroup is IDonationAddressProvider, Initializable, ERC1155Holder {
+    /// @notice whoever owns `admin.<label>.wakestake.eth` is the group admin
+    string public constant ADMIN_LABEL = "admin";
+    /// @notice the admin name can be transferred, which hands over admin rights, and can point to its own resolver
+    uint256 public constant ADMIN_NAME_ROLES = RegistryRolesLib.ROLE_CAN_TRANSFER_ADMIN
+        | RegistryRolesLib.ROLE_SET_RESOLVER | RegistryRolesLib.ROLE_SET_RESOLVER_ADMIN;
+
     /// @dev immutables live in the implementation's code, so every clone shares them
     IWakeStake public immutable wakeStake;
     IStakeOwnershipVerifier public immutable stakeOwnershipVerifier;
 
+    /// @notice the ENSv2 registry of `*.<label>.wakestake.eth`. This group is the only account that can register in it.
+    IPermissionedRegistry public registry;
+    /// @notice this group's name is `<label>.wakestake.eth`
+    string public label;
     /// @notice members can change it with voteDonationAddress
     address public donationAddress;
-    /// @notice whoever created the group, the only account that can add members
-    address public admin;
     address public stakeToken;
     /// @notice members can change it with voteMinStakeAmount
     uint256 public minStakeAmount;
@@ -47,22 +60,42 @@ contract DonationGroup is IDonationAddressProvider, Initializable {
         _disableInitializers();
     }
 
-    /// @dev clones have no constructor, so the factory calls this in the same transaction as the clone
-    function initialize(address _donationAddress, address _admin, address _stakeToken, uint256 _minStakeAmount)
-        external
-        initializer
-    {
+    /**
+     * @dev clones have no constructor, so the factory calls this in the same transaction as the clone
+     * @param _admin receives `admin.<_label>.wakestake.eth`
+     * @param _registry the group's ENSv2 registry, which must grant this group ROLE_REGISTRAR and ROLE_SET_PARENT
+     * @param _parentRegistry the registry of wakestake.eth
+     */
+    function initialize(
+        address _donationAddress,
+        address _admin,
+        address _stakeToken,
+        uint256 _minStakeAmount,
+        IPermissionedRegistry _registry,
+        IRegistry _parentRegistry,
+        string calldata _label
+    ) external initializer {
         // 0 would make WakeStake send lost stakes to this contract, which has no way to move them
         require(_donationAddress != address(0), "donation address cannot be zero");
         donationAddress = _donationAddress;
-        admin = _admin;
         stakeToken = _stakeToken;
         minStakeAmount = _minStakeAmount;
+        registry = _registry;
+        label = _label;
+
+        // so ENS can find this registry's canonical name, <_label>.wakestake.eth
+        _registry.setParent(_parentRegistry, _label);
+        _registry.register(ADMIN_LABEL, _admin, IRegistry(address(0)), address(0), ADMIN_NAME_ROLES, type(uint64).max);
+    }
+
+    /// @notice the owner of `admin.<label>.wakestake.eth`, the only account that can add members
+    function admin() public view returns (address) {
+        return registry.findOwner(ADMIN_LABEL);
     }
 
     // TODO: add mechanism for member removal, maybe just dox who failed to wake in time and remove them upon donation.
     function addMember(address _member) external {
-        require(msg.sender == admin, "only the group admin can add members");
+        require(msg.sender == admin(), "only the group admin can add members");
         // counted once, otherwise the admin could inflate memberCount and block every vote
         require(!isMember[_member], "already a member");
         isMember[_member] = true;
