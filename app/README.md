@@ -61,6 +61,22 @@ account. `npm run test:e2e:chain` runs the whole stake → wake → oversleep �
 `VITE_CHAIN=sepolia`, `VITE_TOKEN_ADDRESS` and `VITE_DONATION_ADDRESS` in `app/.env.local`. You need Sepolia ETH for gas.
 To demo a slash, set the wake-by time a few minutes ahead: the contract only releases a stake after its deadline.
 
+**Uniswap donations.** A late stake can be swapped into the token the charity wants. Stakes point their
+donation address at a `DonationRouter` (one per charity, [contracts/DonationRouter.sol](../contracts/DonationRouter.sol)).
+The slash sends the staked token there, and the app then asks Uniswap v3's QuoterV2 for a price and calls
+`donate()`, which swaps through SwapRouter02 (max 1% slippage) and forwards the result to the charity.
+The slash and the swap are separate on purpose: a failed swap can't undo a slash, and the tokens wait
+in the router until anyone retries `donate`. The shame post and receipt show token amounts ("100 wUSD"),
+never dollars. Set it up on Sepolia (after the test token) with:
+
+```sh
+pnpm hardhat run scripts/setup-donation-router.ts --network sepolia   # CHARITY=0x… optional
+```
+
+That deploys the router plus a demo charity token (cUSD), creates a funded wUSD/cUSD Uniswap pool and
+adds `VITE_DONATION_ROUTER` to `app/.env.local`. `pnpm hardhat test nodejs test/DonationRouter.ts` tests
+it against the real Uniswap contracts on a Sepolia fork (slow on a free RPC; `FORK_URL=` for your own).
+
 After changing the circuit, `pnpm build:verifier` in the root also copies the compiled circuit into the app.
 
 ## Demo flow

@@ -18,6 +18,8 @@ export function createMockProofService(latencyMs: number): ProofService {
         snoozeNumber,
         proofHash: tx.proofHash ?? `0x${randomHex(32)}`,
         onChain: tx.onChain,
+        amountLabel: tx.amountLabel,
+        donatedAs: tx.donatedAs,
         explorerUrl: tx.explorerUrl,
       };
     },

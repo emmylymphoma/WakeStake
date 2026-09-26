@@ -61,6 +61,7 @@ export function useSnoozeFlow() {
         displayName: state.profile.displayName,
         handle: state.profile.handle,
         penalty,
+        amountLabel: tx.amountLabel,
         charityName: charity.name,
         sessionSnoozeIndex,
         stats: state.stats,

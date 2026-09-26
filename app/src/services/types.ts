@@ -69,6 +69,8 @@ export interface ShameContext {
   displayName: string;
   handle: string;
   penalty: Cents;
+  /** The amount in the staked token ("50 wUSD"); used instead of dollars when set. */
+  amountLabel?: string;
   charityName: string;
   sessionSnoozeIndex: number;
   stats: Stats;

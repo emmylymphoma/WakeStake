@@ -98,6 +98,10 @@ export interface TxResult {
   explorerUrl?: string;
   /** Hash of the ZK proof sent with the transaction, if any. */
   proofHash?: string;
+  /** The amount in the staked token, e.g. "50 wUSD". Real stakes aren't in dollars. */
+  amountLabel?: string;
+  /** What the charity actually received after the Uniswap swap, e.g. "44.8 cUSD". */
+  donatedAs?: string;
 }
 
 /** Verifiable receipt that a snooze happened and was paid for. */
@@ -115,6 +119,8 @@ export interface ProofOfSnooze {
   proofHash: string;
   onChain?: boolean;
   explorerUrl?: string;
+  amountLabel?: string;
+  donatedAs?: string;
 }
 
 export interface ShamePost {

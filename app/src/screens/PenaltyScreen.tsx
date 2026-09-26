@@ -36,7 +36,7 @@ export function PenaltyScreen({ eventId }: { eventId: string }) {
     >
       <div className="penalty-hero">
         <div className="penalty-eyebrow">SNOOZE DETECTED</div>
-        <div className="penalty-amount">−{formatMoney(event.penalty)}</div>
+        <div className="penalty-amount">−{event.receipt.amountLabel ?? formatMoney(event.penalty)}</div>
         <p className="penalty-roast">{pick(PENALTY_ROASTS, event.id)}</p>
         <p className="muted small">
           Sent to <strong className="text">{event.receipt.charityName}</strong>. Non-refundable. Obviously.

@@ -1,6 +1,7 @@
 import { getAddress, type Address, type Chain } from 'viem';
 import { hardhat, sepolia } from 'viem/chains';
 import sepoliaDeployment from '../../../../ignition/deployments/chain-11155111/deployed_addresses.json';
+import { POOL_FEE, UNISWAP_SEPOLIA } from '../../../../src/uniswap';
 
 /**
  * Chain mode is on when VITE_CHAIN is set (see app/.env.example). Without it the app
@@ -14,6 +15,11 @@ export interface ChainConfig {
   token: Address;
   /** Where a late stake goes. Fixed per note at stake time: the contract can't change it later. */
   donation: Address;
+  /**
+   * Set when `donation` is a DonationRouter: after a slash the app swaps the stake on Uniswap
+   * into the charity's token. Unset: the charity simply receives the staked token.
+   */
+  donationRouter?: { quoter: Address; poolFee: number };
   /** MockERC20 only: mint yourself the difference when your balance is too low to stake. */
   mintTestTokens: boolean;
 }
@@ -40,7 +46,14 @@ export function readChainConfig(env: Env = import.meta.env as Env): ChainConfig 
     rpcUrl: required('VITE_RPC_URL', known.chain.rpcUrls.default.http[0]),
     wakeStake: getAddress(required('VITE_WAKESTAKE_ADDRESS', known.wakeStake)),
     token: getAddress(required('VITE_TOKEN_ADDRESS')),
-    donation: getAddress(required('VITE_DONATION_ADDRESS')),
+    // A DonationRouter is the donation address; it forwards to the charity after a Uniswap swap.
+    donation: getAddress(env.VITE_DONATION_ROUTER || required('VITE_DONATION_ADDRESS')),
+    donationRouter: env.VITE_DONATION_ROUTER
+      ? {
+          quoter: getAddress(env.VITE_UNISWAP_QUOTER || UNISWAP_SEPOLIA.quoterV2),
+          poolFee: Number(env.VITE_UNISWAP_POOL_FEE || POOL_FEE),
+        }
+      : undefined,
     mintTestTokens: env.VITE_MINT_TEST_TOKENS === '1',
   };
 }

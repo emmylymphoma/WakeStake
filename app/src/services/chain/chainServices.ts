@@ -3,6 +3,7 @@ import {
   createPublicClient,
   createWalletClient,
   custom,
+  formatUnits,
   getAddress,
   http,
   keccak256,
@@ -18,6 +19,7 @@ import type { CircuitInputs } from '../../../../src/circuit';
 import { hashSecret } from '../../../../src/hashing';
 import { fetchMerkleTree } from '../../../../src/merkleTree';
 import { noteAllSecretsHash, randomFieldElement, type Note } from '../../../../src/note';
+import { quoteExactInputSingle } from '../../../../src/uniswap';
 import type { Cents, TxResult, WakeCode } from '../../domain/types';
 import type { StakeService, WalletService } from '../types';
 import type { ChainConfig } from './config';
@@ -29,6 +31,14 @@ const wakeStakeAbi = parseAbi([
   'function wake(uint256 _newleaf, uint256 _root, uint256 _nullifier, uint256 _pastTimeStamp, uint256 _futureTimeStamp, bytes _proof)',
   'function withdraw(address _recipient, address _token, uint256 _amount, uint256 _root, uint256 _nullifier, uint256 _pastTimeStamp, uint256 _futureTimeStamp, bool _lose, bytes _proof)',
 ]);
+
+const donationRouterAbi = parseAbi([
+  'function donationToken() view returns (address)',
+  'function donate(address _tokenIn, uint24 _poolFee, uint256 _amountOutMinimum) returns (uint256 amountOut)',
+]);
+
+/** Accept up to 1% less than Uniswap quoted. */
+const SLIPPAGE_BPS = 100n;
 
 const tokenAbi = parseAbi([
   'function decimals() view returns (uint8)',
@@ -144,7 +154,7 @@ export function createChainStakeService(cfg: ChainConfig, deps: ChainDeps = crea
     owner: Address,
     call: {
       address: Address;
-      abi: typeof wakeStakeAbi | typeof tokenAbi;
+      abi: typeof wakeStakeAbi | typeof tokenAbi | typeof donationRouterAbi;
       functionName: string;
       args: readonly unknown[];
     },
@@ -181,6 +191,51 @@ export function createChainStakeService(cfg: ChainConfig, deps: ChainDeps = crea
     }
     if ((await read<bigint>('allowance', [owner, cfg.wakeStake])) < units) {
       await send(owner, { address: cfg.token, abi: tokenAbi, functionName: 'approve', args: [cfg.wakeStake, units] });
+    }
+  }
+
+  /** "50 wUSD": amounts in the token's own units, not dollars (prices move). */
+  async function tokenLabel(token: Address, amount: bigint) {
+    const [tokenDecimals, symbol] = await Promise.all([
+      publicClient.readContract({ address: token, abi: tokenAbi, functionName: 'decimals' }),
+      publicClient.readContract({ address: token, abi: tokenAbi, functionName: 'symbol' }),
+    ]);
+    return `${formatUnits(amount, tokenDecimals)} ${symbol}`;
+  }
+
+  /**
+   * The slashed stake now sits in the DonationRouter: swap it on Uniswap into the charity's token.
+   * Best effort: the slash already happened, and if the swap fails the tokens wait in the router
+   * for anyone to retry `donate`.
+   */
+  async function donateViaUniswap(owner: Address, token: Address): Promise<string | undefined> {
+    if (!cfg.donationRouter) return undefined;
+    const router = cfg.donation;
+    try {
+      const [amountIn, donationToken] = await Promise.all([
+        publicClient.readContract({ address: token, abi: tokenAbi, functionName: 'balanceOf', args: [router] }),
+        publicClient.readContract({ address: router, abi: donationRouterAbi, functionName: 'donationToken' }),
+      ]);
+      if (amountIn === 0n) return undefined;
+      const quote =
+        getAddress(donationToken) === getAddress(token)
+          ? amountIn
+          : await quoteExactInputSingle(publicClient, cfg.donationRouter.quoter, {
+              tokenIn: token,
+              tokenOut: donationToken,
+              amountIn,
+              fee: cfg.donationRouter.poolFee,
+            });
+      await send(owner, {
+        address: router,
+        abi: donationRouterAbi,
+        functionName: 'donate',
+        args: [token, cfg.donationRouter.poolFee, (quote * (10_000n - SLIPPAGE_BPS)) / 10_000n],
+      });
+      return tokenLabel(donationToken, quote);
+    } catch (e) {
+      console.warn('Uniswap donation failed; the stake is waiting in the DonationRouter:', e);
+      return undefined;
     }
   }
 
@@ -303,7 +358,12 @@ export function createChainStakeService(cfg: ChainConfig, deps: ChainDeps = crea
         ],
       });
       notes.setStatus(current, 'spent', tx.txHash);
-      return { ...tx, proofHash: keccak256(proof.proof) };
+      const token = addressOf(note.token);
+      const [amountLabel, donatedAs] = await Promise.all([
+        tokenLabel(token, note.amount),
+        donateViaUniswap(owner, token),
+      ]);
+      return { ...tx, proofHash: keccak256(proof.proof), amountLabel, donatedAs };
     },
   };
 }

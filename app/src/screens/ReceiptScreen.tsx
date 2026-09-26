@@ -37,6 +37,7 @@ export function ReceiptScreen({ eventId }: { eventId: string }) {
     ['Wallet', short(r.walletAddress, 4)],
     ['Snooze #', String(r.snoozeNumber)],
     ['Beneficiary', r.charityName],
+    ...(r.donatedAs ? ([['Donated as', `${r.donatedAs} (Uniswap)`]] as [string, string][]) : []),
     ['Network', r.network],
     ['Block', r.blockNumber.toLocaleString()],
     ['Tx hash', short(r.txHash)],
@@ -63,7 +64,7 @@ export function ReceiptScreen({ eventId }: { eventId: string }) {
         <div className="receipt-rule" />
         <div className="receipt-total">
           <span>AMOUNT FORFEITED</span>
-          <strong>{formatMoney(r.amount)}</strong>
+          <strong>{r.amountLabel ?? formatMoney(r.amount)}</strong>
         </div>
         <div className="receipt-rule" />
         <HashPattern hash={r.proofHash} />
