@@ -34,7 +34,7 @@ export function BeneficiaryScreen({ mode }: { mode: 'onboarding' | 'manage' }) {
       ) : null}
 
       <Eyebrow>{mode === 'onboarding' ? 'Step 3 · The beneficiary' : 'The beneficiary'}</Eyebrow>
-      <h2 className="title">Who gets your money? Not your call.</h2>
+      <h2 className="title">Who gets your money?</h2>
       <p className="muted">
         WakeStake picks a charity you’d <strong className="text">hate</strong> funding. You won’t know which one until the
         morning you snooze past your wake-up time. We check again right then, so it’s always up to date.
@@ -67,7 +67,7 @@ export function BeneficiaryScreen({ mode }: { mode: 'onboarding' | 'manage' }) {
           </span>
           <div className="grow">
             <strong>No X? Take the questionnaire</strong>
-            <span className="muted small">Pick a side on the spicy stuff. We fund the other side.</span>
+            <span className="muted small">Pick a side on a few topics. We fund the side you’re against.</span>
           </div>
         </div>
         {source?.kind === 'questionnaire' ? (
@@ -78,7 +78,7 @@ export function BeneficiaryScreen({ mode }: { mode: 'onboarding' | 'manage' }) {
         </Button>
       </Card>
 
-      <p className="fine-print">You can’t choose or see the charity. That’s the point. 😈</p>
+      <p className="fine-print">You don’t choose the charity. You see it the first time you snooze late.</p>
     </Screen>
   );
 }

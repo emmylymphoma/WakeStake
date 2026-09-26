@@ -64,7 +64,7 @@ test('stake → wake with a ZK proof → oversleep → whole stake goes to chari
 
   await page.goto('/');
   await expect(page.getByText('Real transactions: your stake is locked')).toBeVisible();
-  await page.getByPlaceholder('Sleepy McSnoozeface').fill('Emmy');
+  await page.getByPlaceholder('Your name').fill('Emmy');
   await page.getByRole('button', { name: /Put money on it/ }).click();
   await page.getByRole('button', { name: 'Connect wallet' }).click();
   await expect(page.getByText('All or nothing.')).toBeVisible();
@@ -76,7 +76,7 @@ test('stake → wake with a ZK proof → oversleep → whole stake goes to chari
   const offDays = page.locator('.day[aria-pressed="false"]');
   while ((await offDays.count()) > 0) await offDays.first().click();
   await page.getByRole('button', { name: 'Arm & lock $50' }).click(); // mint + approve + stake()
-  await expect(page.getByText('Who gets your money? Not your call.')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText('Who gets your money?')).toBeVisible({ timeout: 60_000 });
   expect(await balanceOf(wakeStake)).toBe(contractBefore + STAKE);
 
   await page.getByRole('button', { name: 'Connect X account' }).click();
@@ -91,7 +91,7 @@ test('stake → wake with a ZK proof → oversleep → whole stake goes to chari
   await page.getByRole('button', { name: /Ring alarm now/ }).click();
   await page.getByRole('button', { name: /I’M UP · scan bathroom QR/ }).click();
   await page.getByRole('button', { name: 'Simulate scan (demo only)' }).click();
-  await expect(page.getByText('You’re up. Legend.')).toBeVisible({ timeout: 180_000 });
+  await expect(page.getByText('You’re up.')).toBeVisible({ timeout: 180_000 });
   expect(await balanceOf(wakeStake)).toBe(contractBefore + STAKE); // re-staked for tomorrow, not withdrawn
 
   // Sleep through tomorrow's deadline.

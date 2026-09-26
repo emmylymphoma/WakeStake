@@ -69,7 +69,7 @@ export function AlarmScreen() {
       </div>
       <SnoozeWarning
           quote={quote}
-          escalating={state.stake.escalating}
+          escalating={state.stake.escalating && !state.stake.allOrNothing}
           wakeBy={state.alarm.wakeBy}
           pick={state.session?.pick ?? null}
         />

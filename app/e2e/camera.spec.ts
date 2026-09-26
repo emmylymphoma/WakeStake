@@ -38,5 +38,5 @@ test('live camera scan of the bathroom QR stops the alarm', async ({ page }) => 
   await page.getByRole('button', { name: /Ring alarm now/ }).click();
   await page.getByRole('button', { name: /I’M UP · scan bathroom QR/ }).click();
   // No clicks: the scanner must pick the code up from the camera stream by itself.
-  await expect(page.getByText('You’re up. Legend.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('You’re up.')).toBeVisible({ timeout: 15_000 });
 });

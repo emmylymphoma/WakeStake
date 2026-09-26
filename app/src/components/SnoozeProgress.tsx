@@ -9,7 +9,7 @@ export function SnoozeProgress({ step }: { step: SnoozeStep | null }) {
   return (
     <div className="overlay" role="status" aria-live="polite">
       <div className="overlay-card">
-        <div className="overlay-title">Processing your weakness…</div>
+        <div className="overlay-title">Processing…</div>
         <ul className="progress-steps">
           {ORDER.map((s, i) => (
             <li key={s} className={i < current ? 'done' : i === current ? 'active' : ''}>

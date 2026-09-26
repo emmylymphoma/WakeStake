@@ -11,7 +11,6 @@ import { useAppState } from '../state/AppStateContext';
 const AMOUNTS = [10, 25, 50, 100].map((d) => ({
   value: dollars(d),
   label: `$${d}`,
-  hint: d === 10 ? 'Coward' : d === 25 ? 'Casual' : d === 50 ? 'Serious' : 'Psycho',
 }));
 const PENALTIES = [1, 2, 5, 10].map((d) => ({ value: dollars(d), label: `$${d}` }));
 
@@ -73,7 +72,7 @@ export function StakeSetupScreen() {
     >
       <Eyebrow>Step 1 · The stake</Eyebrow>
       <h2 className="title">How much is your sleep worth?</h2>
-      <p className="muted">Pick an amount that would genuinely annoy you to lose. That’s the point.</p>
+      <p className="muted">Pick an amount you’d actually miss.</p>
 
       <Card className="wallet-card">
         <span className="wallet-dot" data-on={Boolean(wallet)} />

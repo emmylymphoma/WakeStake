@@ -7,7 +7,7 @@ export function MissingEvent() {
   return (
     <Screen footer={<Button onClick={() => reset({ name: 'dashboard' })}>Back to dashboard</Button>}>
       <h2 className="title">Nothing to see here.</h2>
-      <p className="muted">That snooze no longer exists. Maybe you dreamt it.</p>
+      <p className="muted">This snooze couldn’t be found.</p>
     </Screen>
   );
 }

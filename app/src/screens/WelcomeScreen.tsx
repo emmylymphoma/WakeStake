@@ -10,8 +10,8 @@ import { useAppState } from '../state/AppStateContext';
 const HOW_IT_WORKS = [
   { icon: '🔒', title: 'Lock a stake', body: 'Put real money behind your alarm.' },
   { icon: '😴', title: 'Snooze late = pay', body: 'Snooze past your wake-up time and your stake goes to charity.' },
-  { icon: '😈', title: 'Not your charity', body: 'We pick one you’d hate funding. You find out at the worst moment.' },
-  { icon: '📣', title: 'Get roasted', body: 'We post your failure on X. Publicly.' },
+  { icon: '😈', title: 'Not your charity', body: 'We pick one you’re against, and reveal it when you snooze late.' },
+  { icon: '📣', title: 'Posted on X', body: 'Late snoozes get posted to your X account.' },
 ];
 
 export function WelcomeScreen() {
@@ -49,7 +49,7 @@ export function WelcomeScreen() {
           <span className="text-danger">U Lose.</span>
         </h1>
         <p className="hero-sub">
-          The alarm clock that charges you for snoozing past your wake-up time. Your money goes to a cause you hate. Your dignity goes to X.
+          The alarm clock that charges you for snoozing past your wake-up time. Your money goes to a cause you’re against.
         </p>
       </div>
 
@@ -71,7 +71,7 @@ export function WelcomeScreen() {
         <Field label="What should we call you?">
           <input
             className="input"
-            placeholder="Sleepy McSnoozeface"
+            placeholder="Your name"
             value={displayName}
             autoComplete="name"
             onChange={(e) => setDisplayName(e.target.value)}

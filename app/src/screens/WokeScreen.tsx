@@ -18,14 +18,14 @@ export function WokeScreen({ lost, snoozes }: { lost: number; snoozes: number })
           {clean ? '🏆' : '🥱'}
         </div>
         <h2 className="title center">
-          {snoozes === 0 ? 'You’re up. Legend.' : clean ? 'Up. Within the rules.' : 'Up. Eventually.'}
+          {snoozes === 0 ? 'You’re up.' : clean ? 'Up. Within the rules.' : 'Up. Eventually.'}
         </h2>
         <p className="muted center">
           {snoozes === 0
             ? pick(WAKE_CHEERS, String(state.stats.wakeCount))
             : clean
-              ? `${snoozes} free snooze${snoozes === 1 ? '' : 's'} used. Zero dollars lost. We’ll allow it.`
-            : `${snoozes} snooze${snoozes === 1 ? '' : 's'} cost you ${formatMoney(lost)} this morning. Tomorrow, do better.`}
+              ? `${snoozes} free snooze${snoozes === 1 ? '' : 's'} used. Nothing lost.`
+            : `${snoozes} snooze${snoozes === 1 ? '' : 's'} cost you ${formatMoney(lost)} this morning.`}
         </p>
       </div>
       <div className="stat-grid">

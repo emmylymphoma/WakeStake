@@ -32,7 +32,7 @@ export function quoteSnooze(state: AppState): SnoozeQuote {
   const { stake, balance } = state;
   const index = state.session?.snoozes ?? 0;
   const freeLeft = state.alarm.legalSnoozes - index;
-  const firstPenalty = Math.min(balance, stake.penaltyPerSnooze);
+  const firstPenalty = stake.allOrNothing ? balance : Math.min(balance, stake.penaltyPerSnooze);
   if (freeLeft > 1) return { kind: 'free', freeLeftAfter: freeLeft - 1, firstPenalty };
   if (freeLeft === 1) return { kind: 'last-free', firstPenalty };
   const penalty = quotePenalty(stake, balance, index, state.alarm.legalSnoozes);

@@ -49,7 +49,7 @@ export function ReceiptScreen({ eventId }: { eventId: string }) {
         <div className="receipt-head">
           <div className="receipt-brand">WAKESTAKE</div>
           <div className="receipt-title">PROOF OF SNOOZE</div>
-          <div className="receipt-sub">Certified evidence of weakness</div>
+          <div className="receipt-sub">Receipt for a late snooze</div>
         </div>
         <div className="receipt-rule" />
         <dl className="receipt-rows">

@@ -22,8 +22,7 @@ export function SettingsScreen() {
   return (
     <Screen onBack={back}>
       <Eyebrow>Settings</Eyebrow>
-      <h2 className="title">The damage</h2>
-      <p className="muted">You asked. Don’t say we didn’t warn you.</p>
+      <h2 className="title">Your losses</h2>
 
       <div className="stat-grid">
         <Stat label="Total lost" value={formatMoney(stats.totalLost)} tone={stats.totalLost > 0 ? 'danger' : undefined} />
@@ -32,7 +31,7 @@ export function SettingsScreen() {
 
       {history.length > 0 ? (
         <section className="stack-sm">
-          <h3 className="section-title">Hall of shame</h3>
+          <h3 className="section-title">Late snoozes</h3>
           <ul className="history">
             {history.slice(0, 20).map((e) => (
               <li key={e.id}>
@@ -54,7 +53,7 @@ export function SettingsScreen() {
           </ul>
         </section>
       ) : stats.totalLost === 0 ? (
-        <p className="muted">Nothing lost yet. Keep it that way.</p>
+        <p className="muted">Nothing lost yet.</p>
       ) : null}
 
       {wallet ? (

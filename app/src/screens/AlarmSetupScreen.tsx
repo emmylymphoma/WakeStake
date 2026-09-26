@@ -9,17 +9,17 @@ import { useNavigation } from '../navigation/Navigation';
 import { useAppState } from '../state/AppStateContext';
 
 const LEGAL_SNOOZES = [
-  { value: 0, label: '0', hint: 'Hardcore' },
-  { value: 1, label: '1', hint: 'Strict' },
-  { value: 2, label: '2', hint: 'Human' },
-  { value: 3, label: '3', hint: 'Soft' },
+  { value: 0, label: '0' },
+  { value: 1, label: '1' },
+  { value: 2, label: '2' },
+  { value: 3, label: '3' },
 ];
 
 const TIMELINE_LABEL = {
   legal: 'Alarm · snooze free',
   'last-legal': 'Last legal snooze ⚠',
   'wake-by': 'Be up. Snoozing now costs money',
-  paid: 'Still in bed? Paying.',
+  paid: 'Late snooze · you pay',
 } as const;
 
 export function AlarmSetupScreen() {
@@ -63,7 +63,7 @@ export function AlarmSetupScreen() {
       }
     >
       <Eyebrow>Step 2 · The alarm</Eyebrow>
-      <h2 className="title">What time do you actually need to be up?</h2>
+      <h2 className="title">What time do you need to be up?</h2>
 
       <label className="time-picker">
         <span className="sr-only">Must be up by</span>

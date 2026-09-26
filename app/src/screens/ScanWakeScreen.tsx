@@ -10,8 +10,8 @@ import type { WakeVerification } from '../services/types';
 import { useAppState } from '../state/AppStateContext';
 
 const REJECTIONS: Record<Extract<WakeVerification, { ok: false }>['reason'], string> = {
-  'wrong-code': 'That’s a WakeStake code, but not yours. Nice try.',
-  'not-wakestake': 'That’s not your bathroom QR. Scanning the cereal box won’t work.',
+  'wrong-code': 'That’s a WakeStake code, but not yours.',
+  'not-wakestake': 'That’s not your bathroom QR code.',
 };
 
 export function ScanWakeScreen() {
@@ -56,8 +56,8 @@ export function ScanWakeScreen() {
       }
     >
       <Eyebrow>Alarm still ringing</Eyebrow>
-      <h2 className="title">Prove it. Go scan your bathroom QR.</h2>
-      <p className="muted">The alarm stops the moment your code is in frame. Not before.</p>
+      <h2 className="title">Scan your bathroom QR to stop the alarm.</h2>
+      <p className="muted">It stops as soon as your code is in frame.</p>
 
       <QrScanner onResult={handleScan} disabled={verifying || proving} />
 

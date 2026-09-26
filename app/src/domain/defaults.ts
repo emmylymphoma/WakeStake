@@ -13,7 +13,7 @@ export function createInitialState(): AppState {
       wakeBy: '07:00',
       legalSnoozes: 2,
       days: ['mon', 'tue', 'wed', 'thu', 'fri'],
-      label: 'Rise & grind (or pay)',
+      label: 'Wake up',
     },
     beneficiary: null,
     wakeCode: null,

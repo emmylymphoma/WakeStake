@@ -35,7 +35,7 @@ export function QuestionnaireScreen({ mode }: { mode: 'onboarding' | 'manage' })
     >
       <Eyebrow>The questionnaire</Eyebrow>
       <h2 className="title">Pick a side. We’ll fund the other one.</h2>
-      <p className="muted">Snooze late and your money goes to whatever you’re against. “Don’t care” is safe. Probably.</p>
+      <p className="muted">Snooze late and your money goes to the side you’re against.</p>
 
       <div className="stack-md">
         {QUESTIONS.map((q) => (

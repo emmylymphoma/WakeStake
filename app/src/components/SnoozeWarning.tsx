@@ -51,6 +51,6 @@ export function SnoozeWarning({ quote, escalating, wakeBy, pick }: Props) {
         </div>
       );
     case 'broke':
-      return <p className="snooze-note text-danger">Stake is empty. You can’t even afford to snooze.</p>;
+      return <p className="snooze-note text-danger">Your stake is empty.</p>;
   }
 }

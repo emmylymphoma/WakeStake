@@ -62,7 +62,7 @@ export function SnoozedScreen() {
         <h3 className="section-title">When it rings again</h3>
         <SnoozeWarning
           quote={quote}
-          escalating={state.stake.escalating}
+          escalating={state.stake.escalating && !state.stake.allOrNothing}
           wakeBy={state.alarm.wakeBy}
           pick={state.session?.pick ?? null}
         />

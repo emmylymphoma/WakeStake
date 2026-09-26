@@ -51,14 +51,15 @@ export function DashboardScreen() {
       <div className="dash-head">
         <Logo />
         <p className="muted">
-          Morning, <strong className="text">{state.profile.displayName || 'sleepyhead'}</strong>. Don’t make this weird.
+          Morning{state.profile.displayName ? ', ' : ''}
+          <strong className="text">{state.profile.displayName}</strong>.
         </p>
       </div>
 
       {broke ? (
         <Card tone="danger" className="stack-sm">
-          <strong>💀 Stake wiped out.</strong>
-          <span className="muted">Your alarm has no teeth. Re-stake to make mornings dangerous again.</span>
+          <strong>Your stake is used up.</strong>
+          <span className="muted">Nothing is at stake right now. Re-stake to put money behind your alarm again.</span>
           <Button variant="secondary" loading={locking} onClick={() => lock()}>
             Re-stake {formatMoney(stake.amount)}
           </Button>
@@ -74,7 +75,7 @@ export function DashboardScreen() {
             {session.lost > 0 ? ` (${formatMoney(session.lost)} gone)` : ' (free so far)'}.
             {snoozing
               ? ` Rings again at ${snoozedUntil.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
-              : ' Get up already.'}
+              : ' Time to get up.'}
           </span>
           <Button variant="secondary" onClick={() => navigate({ name: snoozing ? 'snoozed' : 'alarm' })}>
             {snoozing ? 'View snooze timer' : 'Back to the alarm'}
@@ -167,7 +168,7 @@ export function DashboardScreen() {
       ) : (
         <Card tone="danger" className="stack-sm">
           <strong>🛏️ No bathroom QR yet.</strong>
-          <span className="muted">Right now you can tap “I’m up” without leaving bed. That’s a loophole.</span>
+          <span className="muted">Without it, you can tap “I’m up” without leaving bed.</span>
           <Button variant="secondary" onClick={() => navigate({ name: 'wakeQr', mode: 'manage' })}>
             Set up bathroom QR
           </Button>

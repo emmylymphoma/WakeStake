@@ -38,7 +38,7 @@ export function RevealScreen() {
   if (missingSource) {
     return (
       <Screen footer={<Button onClick={() => navigate({ name: 'beneficiary', mode: 'manage' })}>Set it up</Button>}>
-        <h2 className="title">We don’t know you well enough to punish you yet.</h2>
+        <h2 className="title">We need to know a bit about you first.</h2>
         <p className="muted">Connect X or take the questionnaire first.</p>
       </Screen>
     );

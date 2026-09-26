@@ -80,7 +80,7 @@ export function formatClock(time: string): string {
 export function describeDays(days: Weekday[]): string {
   const set = new Set(days);
   if (set.size === 7) return 'Every day';
-  if (set.size === 0) return 'Never (coward)';
+  if (set.size === 0) return 'Never';
   const weekdays: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri'];
   if (set.size === 5 && weekdays.every((d) => set.has(d))) return 'Weekdays';
   if (set.size === 2 && set.has('sat') && set.has('sun')) return 'Weekends';

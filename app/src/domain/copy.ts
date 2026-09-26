@@ -3,21 +3,13 @@
 export const SLOGAN = 'U Snooze U Lose.';
 
 export const PENALTY_ROASTS = [
-  'Your pillow just invoiced you.',
-  'Congrats, you’re a philanthropist now. Involuntarily.',
-  'Bed: 1. You: 0.',
-  'That snooze was sponsored by your wallet.',
-  'Nine more minutes. Worth it? (No.)',
-  'Your alarm is winning and it knows it.',
-  'Somewhere, a charity just smiled because you’re weak.',
+  'That snooze wasn’t free.',
+  'Bed 1, you 0.',
+  'Five more minutes, paid in full.',
+  'Your pillow just sent an invoice.',
 ];
 
-export const WAKE_CHEERS = [
-  'Look at you. A functioning adult.',
-  'Stake safe. Dignity intact.',
-  'The bed lost this round.',
-  'Your wallet thanks you.',
-];
+export const WAKE_CHEERS = ['Stake safe.', 'Up on time.', 'The bed lost this round.', 'Good start to the day.'];
 
 /** Deterministic pick so the same event always shows the same line. */
 export function pick<T>(items: readonly T[], seed: string): T {

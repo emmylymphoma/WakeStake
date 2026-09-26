@@ -10,7 +10,7 @@ export type SnoozeStep = 'slashing' | 'proving' | 'writing';
 export const SNOOZE_STEP_LABELS: Record<SnoozeStep, string> = {
   slashing: 'Slashing your stake',
   proving: 'Minting Proof of Snooze',
-  writing: 'Drafting your public confession',
+  writing: 'Writing your post',
 };
 
 export type SnoozeOutcome =
@@ -78,7 +78,7 @@ export function useSnoozeFlow() {
       dispatch({ type: 'SNOOZE_RECORDED', event });
       return { kind: 'paid', event };
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Snooze failed. Lucky you.');
+      setError(e instanceof Error ? e.message : 'Snooze failed.');
       return null;
     } finally {
       setStep(null);

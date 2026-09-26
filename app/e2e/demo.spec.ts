@@ -72,7 +72,7 @@ test('legal snoozes → warning → charity reveal → paid snoozes; QR wakes yo
 
   // "I'm up" demands the bathroom QR. A random QR is rejected…
   await page.getByRole('button', { name: /I’m up · go scan/ }).click();
-  await expect(page.getByText('Prove it. Go scan your bathroom QR.')).toBeVisible();
+  await expect(page.getByText('Scan your bathroom QR to stop the alarm.')).toBeVisible();
   const input = page.getByTestId('qr-photo-input');
   await input.setInputFiles(await writeQrPng(`${info.outputDir}/cereal-box.png`, 'https://example.com/cereal'));
   await expect(page.getByText(/not your bathroom QR/)).toBeVisible();
@@ -94,7 +94,7 @@ test('legal snoozes → warning → charity reveal → paid snoozes; QR wakes yo
   await page.getByRole('button', { name: /Ring alarm now/ }).click();
   await page.getByRole('button', { name: /I’M UP · scan bathroom QR/ }).click();
   await page.getByTestId('qr-photo-input').setInputFiles(myQr);
-  await expect(page.getByText('You’re up. Legend.')).toBeVisible();
+  await expect(page.getByText('You’re up.')).toBeVisible();
   await page.getByRole('button', { name: 'Back to dashboard' }).click();
   await expect(stat(page, 'Streak')).toHaveText('1🔥');
 
@@ -166,7 +166,7 @@ test('another user’s WakeStake QR is rejected', async ({ page }, info) => {
   await page
     .getByTestId('qr-photo-input')
     .setInputFiles(await writeQrPng(`${info.outputDir}/friend.png`, 'wakestake:wake:v1:someoneelse'));
-  await expect(page.getByText(/not yours\. Nice try/)).toBeVisible();
+  await expect(page.getByText(/but not yours/)).toBeVisible();
 });
 
 test('regenerating the code invalidates the old printout', async ({ page }, info) => {
@@ -181,5 +181,5 @@ test('regenerating the code invalidates the old printout', async ({ page }, info
   await page.getByRole('button', { name: /Ring alarm now/ }).click();
   await page.getByRole('button', { name: /I’M UP · scan bathroom QR/ }).click();
   await page.getByTestId('qr-photo-input').setInputFiles(oldQr);
-  await expect(page.getByText(/not yours\. Nice try/)).toBeVisible();
+  await expect(page.getByText(/but not yours/)).toBeVisible();
 });
