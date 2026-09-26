@@ -1,5 +1,21 @@
 # WakeStake
-u snooze u lose 
+u snooze u lose
+
+you stake money on waking up. set an alarm, lock a stake, scan the QR code in your bathroom before the alarm and the stake rolls over to tomorrow. oversleep and your friend group slashes it to a cause they voted on, and the swap into the charity's token runs on Uniswap.
+
+the novel bit is privacy with a time lock: your alarm time, your stake and your identity never appear on-chain. the stake is a private commitment, and both "I woke up" and "they didn't" are zk proofs checked against a time window. waking needs a secret only you have (the QR code), so nobody can wake for you. slashing needs no secret but only works after the alarm has passed, so the group can punish you but never rob you. groups are ENSv2 names: `<group>.wakestake.eth`, members are subnames, and admin is whoever owns `admin.<group>.wakestake.eth`.
+
+# try it
+**hosted:** https://wake-stake.vercel.app (Sepolia, needs MetaMask with a little Sepolia ETH; the app mints you the test token)
+
+**local** (node 24 + pnpm, see install below if you don't have them):
+```sh
+pnpm install && cd app && npm install
+npm run dev                                              # mock mode: no wallet, no chain, http://localhost:5173
+echo "VITE_CHAIN=sepolia" > .env.local && npm run dev    # real Sepolia contracts, zk proofs in your browser
+```
+
+tests: `pnpm hardhat test` at the root (contracts, circuits, ENS and Uniswap against real ENS code), `npm test` in `app/`.
 
 # how it works
 1. **stake**: deposit an ERC20 into `WakeStake` as a private note (Poseidon commitment in a LeanIMT). your alarm time and a donation address are hidden inside. only you know `secret`, your friend group knows the rest.
@@ -29,8 +45,8 @@ u snooze u lose
 
 sponsor feedback for ENS and Uniswap: [FEEDBACK.md](FEEDBACK.md)
 
-# mobile UI prototype
-see [app/README.md](app/README.md) — `cd app && npm install && npm run dev`
+# app
+see [app/README.md](app/README.md) for the app's tests and settings.
 
 real transactions against a local chain (after `pnpm install` here):
 ```sh

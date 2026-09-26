@@ -121,7 +121,7 @@ export function DashboardScreen() {
         </div>
         {!broke && state.wallet ? (
           <>
-            <Button variant="ghost" loading={withdrawing} onClick={withdraw}>
+            <Button variant="secondary" loading={withdrawing} onClick={withdraw}>
               Cash out {formatMoney(balance)}
             </Button>
             {withdrawError ? <p className="text-danger small">{withdrawError}</p> : null}
