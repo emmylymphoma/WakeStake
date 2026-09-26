@@ -9,7 +9,7 @@ import { useAppState } from '../state/AppStateContext';
 
 const STEPS = [
   'Print it (or download and print later).',
-  'Stick it in your bathroom — mirror, door, wherever. Not next to your bed.',
+  'Stick it up in your bathroom, away from your bed.',
   'When the alarm rings, the only way to stop it is walking over and scanning it.',
 ];
 
@@ -61,12 +61,12 @@ export function WakeQrScreen({ mode }: { mode: 'onboarding' | 'manage' }) {
       step={mode === 'onboarding' ? { current: 4, total: 4 } : undefined}
       footer={
         <Button size="lg" disabled={!code} onClick={finish}>
-          {mode === 'onboarding' ? 'It’s on the wall. Let’s go.' : 'Done'}
+          {mode === 'onboarding' ? 'It’s up on the wall' : 'Done'}
         </Button>
       }
     >
-      <Eyebrow>{mode === 'onboarding' ? 'Step 4 · The trap' : 'Bathroom QR'}</Eyebrow>
-      <h2 className="title">Your alarm’s off switch lives in the bathroom now.</h2>
+      <Eyebrow>{mode === 'onboarding' ? 'Step 4 · Bathroom QR' : 'Bathroom QR'}</Eyebrow>
+      <h2 className="title">Put this code up in your bathroom.</h2>
 
       <div className="qr-sheet" data-testid="wake-qr">
         <div className="qr-sheet-brand">WAKESTAKE</div>

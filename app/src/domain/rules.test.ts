@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from './defaults';
 import { dollars, formatMoney } from './money';
-import { applyFreeSnooze, applyRestake, applySnooze, applyWake, quotePenalty, quoteSnooze, startSession } from './rules';
+import {
+  applyCharityPick,
+  applyFreeSnooze,
+  applyRestake,
+  applySnooze,
+  applyWake,
+  needsCharityReveal,
+  quotePenalty,
+  quoteSnooze,
+  startSession,
+} from './rules';
 import type { AppState, SnoozeEvent } from './types';
 
 function armed(overrides: Partial<AppState> = {}): AppState {
@@ -37,38 +47,42 @@ function snoozeEvent(penalty: number, balanceAfter: number, index = 0): SnoozeEv
 }
 
 describe('quotePenalty', () => {
-  const stake = { amount: dollars(50), penaltyPerSnooze: dollars(5), freeSnoozes: 0, escalating: true };
+  const stake = { amount: dollars(50), penaltyPerSnooze: dollars(5), escalating: true, allOrNothing: false };
 
   it('doubles per paid snooze when escalating', () => {
-    expect([0, 1, 2, 3].map((i) => quotePenalty(stake, dollars(1000), i))).toEqual([5, 10, 20, 40].map(dollars));
+    expect([0, 1, 2, 3].map((i) => quotePenalty(stake, dollars(1000), i, 0))).toEqual([5, 10, 20, 40].map(dollars));
   });
 
-  it('is free for the first N snoozes, then escalates from the first paid one', () => {
-    const graced = { ...stake, freeSnoozes: 2 };
-    expect([0, 1, 2, 3, 4].map((i) => quotePenalty(graced, dollars(1000), i))).toEqual([0, 0, 5, 10, 20].map(dollars));
+  it('is free for the legal snoozes, then escalates from the first paid one', () => {
+    expect([0, 1, 2, 3, 4].map((i) => quotePenalty(stake, dollars(1000), i, 2))).toEqual([0, 0, 5, 10, 20].map(dollars));
   });
 
   it('is flat when not escalating', () => {
-    expect(quotePenalty({ ...stake, escalating: false }, dollars(50), 4)).toBe(dollars(5));
+    expect(quotePenalty({ ...stake, escalating: false }, dollars(50), 4, 0)).toBe(dollars(5));
   });
 
   it('never exceeds the remaining balance', () => {
-    expect(quotePenalty(stake, dollars(3), 0)).toBe(dollars(3));
-    expect(quotePenalty(stake, 0, 0)).toBe(0);
+    expect(quotePenalty(stake, dollars(3), 0, 0)).toBe(dollars(3));
+    expect(quotePenalty(stake, 0, 0, 0)).toBe(0);
+  });
+
+  it('takes the whole balance on the first paid snooze when all-or-nothing', () => {
+    const allOrNothing = { ...stake, allOrNothing: true };
+    expect([0, 1, 2, 3].map((i) => quotePenalty(allOrNothing, dollars(50), i, 2))).toEqual([0, 0, 50, 50].map(dollars));
   });
 
   it('caps escalation', () => {
-    expect(quotePenalty(stake, dollars(10_000), 50)).toBe(dollars(5 * 32));
+    expect(quotePenalty(stake, dollars(10_000), 50, 0)).toBe(dollars(5 * 32));
   });
 });
 
 describe('quoteSnooze (warning ring)', () => {
-  const withSnoozes = (freeSnoozes: number, snoozes: number, balance = dollars(50)) => {
+  const withSnoozes = (legalSnoozes: number, snoozes: number, balance = dollars(50)) => {
     const s = armed({ balance });
     return {
       ...s,
-      stake: { ...s.stake, freeSnoozes },
-      session: { startedAt: 'a', snoozes, lost: 0, snoozedUntil: null },
+      alarm: { ...s.alarm, legalSnoozes },
+      session: { startedAt: 'a', snoozes, lost: 0, snoozedUntil: null, pick: null },
     };
   };
 
@@ -79,27 +93,53 @@ describe('quoteSnooze (warning ring)', () => {
     expect(quoteSnooze(withSnoozes(2, 3))).toEqual({ kind: 'paid', penalty: dollars(10) });
   });
 
-  it('warns on the very first ring when there is exactly one free snooze', () => {
+  it('warns on the very first ring when there is exactly one legal snooze', () => {
     expect(quoteSnooze(withSnoozes(1, 0)).kind).toBe('last-free');
   });
 
-  it('charges immediately with zero free snoozes', () => {
+  it('charges immediately with zero legal snoozes', () => {
     expect(quoteSnooze(withSnoozes(0, 0))).toEqual({ kind: 'paid', penalty: dollars(5) });
   });
 
-  it('allows free snoozes with an empty stake, but not paid ones', () => {
+  it('allows legal snoozes with an empty stake, but not paid ones', () => {
     expect(quoteSnooze(withSnoozes(2, 0, 0)).kind).toBe('free');
     expect(quoteSnooze(withSnoozes(2, 2, 0)).kind).toBe('broke');
   });
 });
 
+describe('needsCharityReveal / applyCharityPick', () => {
+  const pick = {
+    charity: { id: 'c', name: 'Friends of Mondays', tagline: '', emoji: '📅', category: '' },
+    basis: 'questionnaire' as const,
+    reasons: [],
+    analyzedAt: AT,
+  };
+
+  it('is needed only at the first paid snooze, and only once per morning', () => {
+    let s = startSession(armed(), AT); // 2 legal snoozes by default
+    expect(needsCharityReveal(s)).toBe(false);
+    s = applyFreeSnooze(applyFreeSnooze(s, AT), AT);
+    expect(needsCharityReveal(s)).toBe(true);
+    s = applyCharityPick(s, pick);
+    expect(needsCharityReveal(s)).toBe(false);
+    s = applySnooze(s, snoozeEvent(dollars(5), dollars(45), 2));
+    expect(needsCharityReveal(s)).toBe(false);
+    expect(s.session?.pick).toEqual(pick);
+  });
+
+  it('is forgotten after waking up — tomorrow gets a fresh analysis', () => {
+    const s = applyCharityPick(startSession(armed(), AT), pick);
+    expect(startSession(applyWake(s), AT).session?.pick).toBeNull();
+  });
+});
+
 describe('applyFreeSnooze', () => {
-  it('counts the snooze, keeps money and streak, and sets the re-ring time', () => {
+  it('counts the snooze, keeps money and streak, and re-rings in 5 minutes', () => {
     const before = armed({ stats: { snoozeCount: 0, totalLost: 0, streak: 3, bestStreak: 3, wakeCount: 3 } });
     const after = applyFreeSnooze(startSession(before, AT), AT);
     expect(after.balance).toBe(before.balance);
     expect(after.stats).toMatchObject({ snoozeCount: 1, totalLost: 0, streak: 3 });
-    expect(after.session).toMatchObject({ snoozes: 1, lost: 0, snoozedUntil: '2026-09-26T07:09:00.000Z' });
+    expect(after.session).toMatchObject({ snoozes: 1, lost: 0, snoozedUntil: '2026-09-26T07:05:00.000Z' });
   });
 });
 
@@ -110,7 +150,7 @@ describe('applySnooze (paid)', () => {
 
     expect(after.balance).toBe(dollars(45));
     expect(after.stats).toMatchObject({ snoozeCount: 3, totalLost: dollars(12), streak: 0, bestStreak: 6 });
-    expect(after.session).toMatchObject({ snoozes: 1, lost: dollars(5), snoozedUntil: '2026-09-26T07:09:00.000Z' });
+    expect(after.session).toMatchObject({ snoozes: 1, lost: dollars(5), snoozedUntil: '2026-09-26T07:05:00.000Z' });
     expect(after.history).toHaveLength(1);
   });
 

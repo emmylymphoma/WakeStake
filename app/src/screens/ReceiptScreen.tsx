@@ -33,10 +33,11 @@ export function ReceiptScreen({ eventId }: { eventId: string }) {
   const rows: [string, string][] = [
     ['Receipt', r.receiptId],
     ['Issued', new Date(r.issuedAt).toLocaleString()],
-    ['Offender', `@${state.profile.handle}`],
+    ['Offender', state.profile.handle ? `@${state.profile.handle}` : state.profile.displayName],
     ['Wallet', short(r.walletAddress, 4)],
     ['Snooze #', String(r.snoozeNumber)],
     ['Beneficiary', r.charityName],
+    ...(r.donatedAs ? ([['Donated as', `${r.donatedAs} (Uniswap)`]] as [string, string][]) : []),
     ['Network', r.network],
     ['Block', r.blockNumber.toLocaleString()],
     ['Tx hash', short(r.txHash)],
@@ -44,12 +45,12 @@ export function ReceiptScreen({ eventId }: { eventId: string }) {
   ];
 
   return (
-    <Screen onBack={back} topRight={<MockBadge>MOCK</MockBadge>}>
+    <Screen onBack={back} topRight={r.onChain ? null : <MockBadge>MOCK</MockBadge>}>
       <div className="receipt">
         <div className="receipt-head">
           <div className="receipt-brand">WAKESTAKE</div>
           <div className="receipt-title">PROOF OF SNOOZE</div>
-          <div className="receipt-sub">Certified evidence of weakness</div>
+          <div className="receipt-sub">Receipt for a late snooze</div>
         </div>
         <div className="receipt-rule" />
         <dl className="receipt-rows">
@@ -63,14 +64,25 @@ export function ReceiptScreen({ eventId }: { eventId: string }) {
         <div className="receipt-rule" />
         <div className="receipt-total">
           <span>AMOUNT FORFEITED</span>
-          <strong>{formatMoney(r.amount)}</strong>
+          <strong>{r.amountLabel ?? formatMoney(r.amount)}</strong>
         </div>
         <div className="receipt-rule" />
         <HashPattern hash={r.proofHash} />
         <div className="receipt-stamp">SNOOZED</div>
-        <p className="receipt-foot">
-          Demo receipt. Not a real transaction. In production, this is a verifiable on-chain / ZK proof.
-        </p>
+        {r.onChain ? (
+          <p className="receipt-foot">
+            Settled on-chain with a zero-knowledge proof.{' '}
+            {r.explorerUrl ? (
+              <a href={r.explorerUrl} target="_blank" rel="noreferrer">
+                View transaction ↗
+              </a>
+            ) : null}
+          </p>
+        ) : (
+          <p className="receipt-foot">
+            Demo receipt. Not a real transaction. In production, this is a verifiable on-chain / ZK proof.
+          </p>
+        )}
       </div>
     </Screen>
   );

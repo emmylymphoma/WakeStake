@@ -4,25 +4,25 @@ import { Screen } from '../components/Screen';
 import { Button, Field } from '../components/ui';
 import { SLOGAN } from '../domain/copy';
 import { useNavigation } from '../navigation/Navigation';
+import { useServices } from '../services/ServiceContext';
 import { useAppState } from '../state/AppStateContext';
 
 const HOW_IT_WORKS = [
   { icon: '🔒', title: 'Lock a stake', body: 'Put real money behind your alarm.' },
-  { icon: '😴', title: 'Snooze = pay', body: 'Every snooze slashes your stake to charity.' },
-  { icon: '📣', title: 'Get roasted', body: 'We post your failure on X. Publicly.' },
+  { icon: '😴', title: 'Snooze late = pay', body: 'Snooze past your wake-up time and your stake goes to charity.' },
+  { icon: '😈', title: 'Not your charity', body: 'We pick one you’re against, and reveal it when you snooze late.' },
+  { icon: '📣', title: 'Posted on X', body: 'Late snoozes get posted to your X account.' },
 ];
 
 export function WelcomeScreen() {
   const { state, dispatch } = useAppState();
   const { navigate } = useNavigation();
+  const services = useServices();
   const [displayName, setDisplayName] = useState(state.profile.displayName);
-  const [handle, setHandle] = useState(state.profile.handle);
-
-  const cleanHandle = handle.replace(/^@/, '').trim();
-  const ready = displayName.trim().length > 0 && cleanHandle.length > 0;
+  const ready = displayName.trim().length > 0;
 
   const start = () => {
-    dispatch({ type: 'SET_PROFILE', profile: { displayName: displayName.trim(), handle: cleanHandle } });
+    dispatch({ type: 'SET_PROFILE', profile: { ...state.profile, displayName: displayName.trim() } });
     navigate({ name: 'stakeSetup' });
   };
 
@@ -33,7 +33,11 @@ export function WelcomeScreen() {
           <Button size="lg" disabled={!ready} onClick={start}>
             Put money on it →
           </Button>
-          <p className="fine-print">No real money. This prototype runs entirely on mock services.</p>
+          <p className="fine-print">
+            {services.stake.penaltyModel === 'all-or-nothing'
+              ? 'Real transactions: your stake is locked in the WakeStake contract.'
+              : 'No real money. This prototype runs entirely on mock services.'}
+          </p>
         </>
       }
     >
@@ -45,7 +49,7 @@ export function WelcomeScreen() {
           <span className="text-danger">U Lose.</span>
         </h1>
         <p className="hero-sub">
-          The alarm clock that charges you for hitting snooze. Your losses go to charity. Your dignity goes to X.
+          The alarm clock that charges you for snoozing past your wake-up time. Your money goes to a cause you’re against.
         </p>
       </div>
 
@@ -67,24 +71,11 @@ export function WelcomeScreen() {
         <Field label="What should we call you?">
           <input
             className="input"
-            placeholder="Sleepy McSnoozeface"
+            placeholder="Your name"
             value={displayName}
             autoComplete="name"
             onChange={(e) => setDisplayName(e.target.value)}
           />
-        </Field>
-        <Field label="Your X handle" hint="So the shame lands in the right place.">
-          <div className="input-prefix">
-            <span>@</span>
-            <input
-              className="input"
-              placeholder="snoozelord"
-              value={handle}
-              autoCapitalize="none"
-              autoCorrect="off"
-              onChange={(e) => setHandle(e.target.value)}
-            />
-          </div>
         </Field>
       </div>
       <span className="sr-only">{SLOGAN}</span>

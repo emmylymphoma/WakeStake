@@ -3,23 +3,25 @@ import { Screen } from '../components/Screen';
 import { SnoozeProgress } from '../components/SnoozeProgress';
 import { Button, Card, Eyebrow, ProgressBar, Stat } from '../components/ui';
 import { useNow } from '../components/useNow';
-import { describeDays, formatClock, formatCountdown, nextAlarmDate } from '../domain/alarm';
+import { describeDays, firstRingTime, formatClock, formatCountdown, nextAlarmDate } from '../domain/alarm';
 import { formatMoney } from '../domain/money';
 import { quoteSnooze } from '../domain/rules';
 import { routeAfterSnooze, snoozeButtonLabel } from '../flows/snoozeCopy';
 import { useSnoozeFlow } from '../flows/useSnoozeFlow';
+import { useLockStake } from '../flows/useLockStake';
 import { useWake } from '../flows/useWake';
 import { useNavigation } from '../navigation/Navigation';
 import { useAppState } from '../state/AppStateContext';
 
 export function DashboardScreen() {
-  const { state, dispatch } = useAppState();
+  const { state } = useAppState();
   const { navigate, reset } = useNavigation();
   const { snooze, step, error } = useSnoozeFlow();
   const { wake, needsScan } = useWake();
+  const { lock, locking, error: lockError } = useLockStake();
   const now = useNow(30_000);
 
-  const { stats, stake, balance, alarm, charity, session } = state;
+  const { stats, stake, balance, alarm, beneficiary, session } = state;
   const next = nextAlarmDate(alarm, now);
   const broke = balance <= 0;
   const quote = quoteSnooze(state);
@@ -31,18 +33,17 @@ export function DashboardScreen() {
     if (outcome) reset(routeAfterSnooze(outcome));
   };
 
-  const resetDemo = () => {
-    if (window.confirm('Wipe all demo data and start over?')) {
-      dispatch({ type: 'RESET' });
-      reset({ name: 'welcome' });
-    }
-  };
-
   return (
     <Screen
       topRight={
-        <button type="button" className="icon-btn" onClick={resetDemo} aria-label="Reset demo" title="Reset demo">
-          ↺
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => navigate({ name: 'settings' })}
+          aria-label="Settings"
+          title="Settings"
+        >
+          ⚙️
         </button>
       }
     >
@@ -50,17 +51,19 @@ export function DashboardScreen() {
       <div className="dash-head">
         <Logo />
         <p className="muted">
-          Morning, <strong className="text">{state.profile.displayName || 'sleepyhead'}</strong>. Don’t make this weird.
+          Morning{state.profile.displayName ? ', ' : ''}
+          <strong className="text">{state.profile.displayName}</strong>.
         </p>
       </div>
 
       {broke ? (
         <Card tone="danger" className="stack-sm">
-          <strong>💀 Stake wiped out.</strong>
-          <span className="muted">Your alarm has no teeth. Re-stake to make mornings dangerous again.</span>
-          <Button variant="secondary" onClick={() => dispatch({ type: 'RESTAKE' })}>
+          <strong>Your stake is used up.</strong>
+          <span className="muted">Nothing is at stake right now. Re-stake to put money behind your alarm again.</span>
+          <Button variant="secondary" loading={locking} onClick={() => lock()}>
             Re-stake {formatMoney(stake.amount)}
           </Button>
+          {lockError ? <p className="text-danger small">{lockError}</p> : null}
         </Card>
       ) : null}
 
@@ -72,7 +75,7 @@ export function DashboardScreen() {
             {session.lost > 0 ? ` (${formatMoney(session.lost)} gone)` : ' (free so far)'}.
             {snoozing
               ? ` Rings again at ${snoozedUntil.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
-              : ' Get up already.'}
+              : ' Time to get up.'}
           </span>
           <Button variant="secondary" onClick={() => navigate({ name: snoozing ? 'snoozed' : 'alarm' })}>
             {snoozing ? 'View snooze timer' : 'Back to the alarm'}
@@ -91,23 +94,35 @@ export function DashboardScreen() {
         </div>
         <ProgressBar value={balance} max={stake.amount} tone={balance / stake.amount < 0.34 ? 'danger' : 'lime'} />
         <div className="muted small">
-          {stake.freeSnoozes > 0 ? `${stake.freeSnoozes} free snooze${stake.freeSnoozes === 1 ? '' : 's'}, then ` : 'Every snooze costs '}
-          <strong className="text-danger">{formatMoney(stake.penaltyPerSnooze)}</strong>
-          {stake.escalating ? ' · doubling each time' : ' each'}
+          {stake.allOrNothing ? (
+            <>
+              Snoozing past {formatClock(alarm.wakeBy)} costs <strong className="text-danger">all of it</strong>
+            </>
+          ) : (
+            <>
+              Snoozing past {formatClock(alarm.wakeBy)} costs{' '}
+              <strong className="text-danger">{formatMoney(stake.penaltyPerSnooze)}</strong>
+              {stake.escalating ? ', doubling each time' : ' each'}
+            </>
+          )}
         </div>
       </Card>
 
       <div className="stat-grid">
         <Stat label="Streak" value={`${stats.streak}🔥`} tone={stats.streak > 0 ? 'lime' : undefined} />
-        <Stat label="Snoozes" value={stats.snoozeCount} />
-        <Stat label="Total lost" value={formatMoney(stats.totalLost)} tone={stats.totalLost > 0 ? 'danger' : undefined} />
         <Stat label="Best streak" value={stats.bestStreak} />
+        <Stat label="Snoozes" value={stats.snoozeCount} />
+        <Stat label="Wake-ups" value={stats.wakeCount} />
       </div>
 
       <Card className="alarm-card">
         <div className="grow">
           <Eyebrow>Next alarm</Eyebrow>
-          <div className="alarm-time">{formatClock(alarm.time)}</div>
+          <div className="alarm-time">{formatClock(firstRingTime(alarm))}</div>
+          <div className="muted small">
+            Be up by <strong className="text">{formatClock(alarm.wakeBy)}</strong> · {alarm.legalSnoozes} legal snooze
+            {alarm.legalSnoozes === 1 ? '' : 's'}
+          </div>
           <div className="muted small">
             {describeDays(alarm.days)} · {alarm.label}
           </div>
@@ -118,18 +133,22 @@ export function DashboardScreen() {
         </div>
       </Card>
 
-      {charity ? (
-        <Card className="charity-mini">
-          <span className="charity-emoji" aria-hidden>
-            {charity.emoji}
+      <Card className="link-card">
+        <button type="button" className="link-row" onClick={() => navigate({ name: 'beneficiary', mode: 'manage' })}>
+          <span aria-hidden>🔒</span>
+          <span className="grow">
+            <strong>Your charity: classified</strong>
+            <span className="muted small">
+              {beneficiary?.kind === 'x'
+                ? `Picked from @${beneficiary.account.handle} on X, the moment you snooze late.`
+                : beneficiary
+                  ? 'Picked from your questionnaire, the moment you snooze late.'
+                  : 'Not set up yet — tap to fix.'}
+            </span>
           </span>
-          <div className="grow">
-            <div className="muted small">Your snoozes fund</div>
-            <strong>{charity.name}</strong>
-          </div>
-          <strong className="text-lime">{formatMoney(stats.totalLost)}</strong>
-        </Card>
-      ) : null}
+          <span aria-hidden>→</span>
+        </button>
+      </Card>
 
       {state.wakeCode ? (
         <Card className="link-card">
@@ -145,51 +164,29 @@ export function DashboardScreen() {
       ) : (
         <Card tone="danger" className="stack-sm">
           <strong>🛏️ No bathroom QR yet.</strong>
-          <span className="muted">Right now you can tap “I’m up” without leaving bed. That’s a loophole.</span>
+          <span className="muted">Without it, you can tap “I’m up” without leaving bed.</span>
           <Button variant="secondary" onClick={() => navigate({ name: 'wakeQr', mode: 'manage' })}>
             Set up bathroom QR
           </Button>
         </Card>
       )}
 
-      <section className="demo-panel stack-sm">
-        <div className="demo-panel-head">
-          <Eyebrow>Demo controls</Eyebrow>
-        </div>
-        <Button variant="secondary" onClick={() => navigate({ name: 'alarm' })}>
-          ⏰ Ring alarm now
-        </Button>
-        <Button
-          variant={quote.kind === 'free' ? 'secondary' : 'danger'}
-          disabled={quote.kind === 'broke' || step !== null}
-          onClick={simulateSnooze}
-        >
-          😴 {snoozeButtonLabel(quote, 'Simulate Snooze')}
-        </Button>
-        {error ? <p className="text-danger small">{error}</p> : null}
-      </section>
-
-      {state.history.length > 0 ? (
-        <section className="stack-sm">
-          <h3 className="section-title">Hall of shame</h3>
-          <ul className="history">
-            {state.history.slice(0, 8).map((e) => (
-              <li key={e.id}>
-                <button type="button" className="history-row" onClick={() => navigate({ name: 'receipt', eventId: e.id })}>
-                  <span className="history-icon" aria-hidden>
-                    😴
-                  </span>
-                  <span className="grow">
-                    <span className="history-title">Snooze #{e.receipt.snoozeNumber}</span>
-                    <span className="muted small">
-                      {new Date(e.at).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
-                    </span>
-                  </span>
-                  <strong className="text-danger">−{formatMoney(e.penalty)}</strong>
-                </button>
-              </li>
-            ))}
-          </ul>
+      {state.demoControls ? (
+        <section className="demo-panel stack-sm">
+          <div className="demo-panel-head">
+            <Eyebrow>Demo controls</Eyebrow>
+          </div>
+          <Button variant="secondary" onClick={() => navigate({ name: 'alarm' })}>
+            ⏰ Ring alarm now
+          </Button>
+          <Button
+            variant={quote.kind === 'free' ? 'secondary' : 'danger'}
+            disabled={quote.kind === 'broke' || step !== null}
+            onClick={simulateSnooze}
+          >
+            😴 {snoozeButtonLabel(quote, 'Simulate Snooze')}
+          </Button>
+          {error ? <p className="text-danger small">{error}</p> : null}
         </section>
       ) : null}
     </Screen>

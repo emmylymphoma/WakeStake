@@ -21,3 +21,7 @@ build_verifier() {
 
 build_verifier wakestake WakeStake
 build_verifier stake_ownership StakeOwnership
+
+# the app proves in the browser with the same circuit
+cp target/wakestake.json ../app/src/services/chain/wakestake.circuit.json
+echo "copied target/wakestake.json to app/src/services/chain/"

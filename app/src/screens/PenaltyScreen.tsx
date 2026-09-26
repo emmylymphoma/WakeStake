@@ -1,6 +1,7 @@
 import { Screen } from '../components/Screen';
 import { Button, Card, Stat } from '../components/ui';
 import { PENALTY_ROASTS, pick } from '../domain/copy';
+import { SNOOZE_MINUTES } from '../domain/alarm';
 import { formatMoney } from '../domain/money';
 import { nextPenalty } from '../domain/rules';
 import { useWake } from '../flows/useWake';
@@ -28,14 +29,14 @@ export function PenaltyScreen({ eventId }: { eventId: string }) {
             {needsScan ? 'Fine, I’m up · go scan' : 'Fine, I’m up'}
           </Button>
           <Button variant="ghost" onClick={() => reset({ name: 'snoozed' })}>
-            Back to sleep for {state.alarm.snoozeMinutes} min (next: −{formatMoney(upcoming)})
+            Back to sleep for {SNOOZE_MINUTES} min (next: −{formatMoney(upcoming)})
           </Button>
         </>
       }
     >
       <div className="penalty-hero">
         <div className="penalty-eyebrow">SNOOZE DETECTED</div>
-        <div className="penalty-amount">−{formatMoney(event.penalty)}</div>
+        <div className="penalty-amount">−{event.receipt.amountLabel ?? formatMoney(event.penalty)}</div>
         <p className="penalty-roast">{pick(PENALTY_ROASTS, event.id)}</p>
         <p className="muted small">
           Sent to <strong className="text">{event.receipt.charityName}</strong>. Non-refundable. Obviously.
@@ -65,7 +66,9 @@ export function PenaltyScreen({ eventId }: { eventId: string }) {
             <span aria-hidden>📣</span>
             <span className="grow">
               <strong>Your public shame</strong>
-              <span className="muted small">Preview the post going to @{state.profile.handle}</span>
+              <span className="muted small">
+                {state.profile.handle ? `Preview the post going to @${state.profile.handle}` : 'Preview what we’d post'}
+              </span>
             </span>
             <span aria-hidden>→</span>
           </button>

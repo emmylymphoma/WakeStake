@@ -49,7 +49,9 @@ export function ShamePostScreen({ eventId }: { eventId: string }) {
       onBack={back}
       topRight={<MockBadge>MOCK</MockBadge>}
       footer={
-        post.url ? (
+        !post.author.handle ? (
+          <p className="fine-print">No X account linked, so this stays private. For now.</p>
+        ) : post.url ? (
           <p className="fine-print text-lime">✓ “Posted” (not really — mock X service). {post.url}</p>
         ) : (
           <Button size="lg" loading={posting} onClick={publish}>
@@ -68,7 +70,7 @@ export function ShamePostScreen({ eventId }: { eventId: string }) {
           </span>
           <span className="grow">
             <strong className="x-name">{name}</strong>
-            <span className="x-handle">@{post.author.handle}</span>
+            <span className="x-handle">{post.author.handle ? `@${post.author.handle}` : '@(no X linked)'}</span>
           </span>
           <span className="x-logo" aria-hidden>
             𝕏
@@ -76,7 +78,7 @@ export function ShamePostScreen({ eventId }: { eventId: string }) {
         </header>
         <p className="x-text">{renderText(post.text)}</p>
         <div className="x-embed">
-          <div className="x-embed-amount">−{formatMoney(event.penalty)}</div>
+          <div className="x-embed-amount">−{event.receipt.amountLabel ?? formatMoney(event.penalty)}</div>
           <div className="muted small">Proof of Snooze · {event.receipt.receiptId}</div>
         </div>
         <div className="x-meta muted small">

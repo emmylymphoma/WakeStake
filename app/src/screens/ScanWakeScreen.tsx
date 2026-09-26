@@ -10,15 +10,15 @@ import type { WakeVerification } from '../services/types';
 import { useAppState } from '../state/AppStateContext';
 
 const REJECTIONS: Record<Extract<WakeVerification, { ok: false }>['reason'], string> = {
-  'wrong-code': 'That’s a WakeStake code, but not yours. Nice try.',
-  'not-wakestake': 'That’s not your bathroom QR. Scanning the cereal box won’t work.',
+  'wrong-code': 'That’s a WakeStake code, but not yours.',
+  'not-wakestake': 'That’s not your bathroom QR code.',
 };
 
 export function ScanWakeScreen() {
   const { state } = useAppState();
   const services = useServices();
   const { back } = useNavigation();
-  const completeWake = useCompleteWake();
+  const { complete: completeWake, proving, error: wakeError } = useCompleteWake();
   const [verifying, setVerifying] = useState(false);
   const [rejection, setRejection] = useState<string | null>(null);
   const code = state.wakeCode;
@@ -30,7 +30,7 @@ export function ScanWakeScreen() {
     try {
       const result = await services.wakeVerification.verify(code, text);
       if (result.ok) {
-        completeWake();
+        await completeWake();
         return;
       }
       setRejection(REJECTIONS[result.reason]);
@@ -45,22 +45,31 @@ export function ScanWakeScreen() {
       onBack={back}
       footer={
         code ? (
-          <Button variant="ghost" disabled={verifying} onClick={() => handleScan(encodeWakeQr(code))}>
-            Simulate scan (demo only)
-          </Button>
+          state.demoControls ? (
+            <Button variant="ghost" disabled={verifying || proving} onClick={() => handleScan(encodeWakeQr(code))}>
+              Simulate scan (demo only)
+            </Button>
+          ) : null
         ) : (
-          <Button onClick={completeWake}>I’m up</Button>
+          <Button loading={proving} onClick={completeWake}>
+            I’m up
+          </Button>
         )
       }
     >
       <Eyebrow>Alarm still ringing</Eyebrow>
-      <h2 className="title">Prove it. Go scan your bathroom QR.</h2>
-      <p className="muted">The alarm stops the moment your code is in frame. Not before.</p>
+      <h2 className="title">Scan your bathroom QR to stop the alarm.</h2>
+      <p className="muted">It stops as soon as your code is in frame.</p>
 
-      <QrScanner onResult={handleScan} disabled={verifying} />
+      <QrScanner onResult={handleScan} disabled={verifying || proving} />
 
       <div role="status" aria-live="polite">
-        {verifying ? <p className="scan-feedback">Checking…</p> : null}
+        {proving ? (
+          <p className="scan-feedback">Proving you’re up on-chain…</p>
+        ) : verifying ? (
+          <p className="scan-feedback">Checking…</p>
+        ) : null}
+        {wakeError ? <p className="scan-feedback scan-feedback-bad">{wakeError}</p> : null}
         {rejection ? <p className="scan-feedback scan-feedback-bad">{rejection}</p> : null}
       </div>
     </Screen>
