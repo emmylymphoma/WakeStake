@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:verifier": "cd circuits && nargo compile && bb write_vk -t evm -b target/wakestake.json -o target && bb write_solidity_verifier -t evm -k target/vk -o ../contracts/WakeStakeVerifier.sol"
   },
   "keywords": [],
   "author": "",
