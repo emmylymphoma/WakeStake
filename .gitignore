@@ -33,3 +33,4 @@ circuits/target/
 
 # Local `pnpm hardhat node` deployments (scripts/deploy-local.ts)
 ignition/deployments/chain-31337
+.vercel

@@ -64,6 +64,9 @@ export function readChainConfig(env: Env = import.meta.env as Env): ChainConfig 
           poolFee: Number(env.VITE_UNISWAP_POOL_FEE || POOL_FEE),
         }
       : undefined,
-    mintTestTokens: env.VITE_MINT_TEST_TOKENS === '1',
+    // on by default for the deployed demo token (MockERC20 with a public mint), VITE_MINT_TEST_TOKENS=0 turns it off
+    mintTestTokens: env.VITE_MINT_TEST_TOKENS
+      ? env.VITE_MINT_TEST_TOKENS === '1'
+      : !env.VITE_TOKEN_ADDRESS && known.token !== undefined,
   };
 }
