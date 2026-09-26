@@ -1,4 +1,4 @@
-// Hashing functions. Keep these in sync with the ones in circuits/src/main.nr.
+// Hashing functions. Keep these in sync with the ones in circuits/common/src/lib.nr.
 import { poseidon1, poseidon2, poseidon3, poseidon4 } from "poseidon-lite";
 
 export function hashSecret(secret: bigint): bigint {

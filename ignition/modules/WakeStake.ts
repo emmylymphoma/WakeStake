@@ -9,11 +9,18 @@ export default buildModule("WakeStakeModule", (m) => {
     libraries: { PoseidonT3: poseidonT3 },
   });
 
-  // The generated HonkVerifier (WakeStakeVerifier.sol) links two of its own libraries.
-  const relationsLib = m.library("RelationsLib");
-  const zkTranscriptLib = m.library("ZKTranscriptLib");
-  const verifier = m.contract("HonkVerifier", [], {
-    libraries: { RelationsLib: relationsLib, ZKTranscriptLib: zkTranscriptLib },
+  // Each generated verifier links two of its own libraries, prefixed per circuit by circuits/buildVerifiers.sh.
+  const verifier = m.contract("WakeStakeVerifier", [], {
+    libraries: {
+      WakeStakeRelationsLib: m.library("WakeStakeRelationsLib"),
+      WakeStakeZKTranscriptLib: m.library("WakeStakeZKTranscriptLib"),
+    },
+  });
+  const stakeOwnershipVerifier = m.contract("StakeOwnershipVerifier", [], {
+    libraries: {
+      StakeOwnershipRelationsLib: m.library("StakeOwnershipRelationsLib"),
+      StakeOwnershipZKTranscriptLib: m.library("StakeOwnershipZKTranscriptLib"),
+    },
   });
 
   // set in ignition/parameters.json, defaults to the deployer (account 0) and 5%
@@ -27,5 +34,5 @@ export default buildModule("WakeStakeModule", (m) => {
 
   const donationGroupFactory = m.contract("DonationGroupFactory");
 
-  return { wakeStake, verifier, leanIMT, poseidonT3, poseidonT4, donationGroupFactory };
+  return { wakeStake, verifier, stakeOwnershipVerifier, leanIMT, poseidonT3, poseidonT4, donationGroupFactory };
 });

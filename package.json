@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "ens:register": "hardhat --network sepolia run scripts/registerEnsName.ts",
-    "build:verifier": "cd circuits && nargo compile && bb write_vk -t evm -b target/wakestake.json -o target && bb write_solidity_verifier -t evm -k target/vk -o ../contracts/WakeStakeVerifier.sol"
+    "build:verifier": "bash circuits/buildVerifiers.sh"
   },
   "keywords": [],
   "author": "",

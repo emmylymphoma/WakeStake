@@ -1,4 +1,4 @@
-/** Maximum Merkle tree depth the circuit supports. Must match MAX_DEPTH in circuits/src/main.nr. */
+/** Maximum Merkle tree depth the circuit supports. Must match MAX_DEPTH in circuits/common/src/lib.nr. */
 export const MAX_TREE_DEPTH = 32;
 
 export const MINUTE = 60n;

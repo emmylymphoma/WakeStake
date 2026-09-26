@@ -29,6 +29,4 @@
 
 # Snapshot cheatcodes output
 /snapshots
-circuits/target/vk
-circuits/target/vk_hash
-circuits/target/wakestake.json
+circuits/target/

@@ -1,0 +1,7 @@
+[package]
+name = "wakestake"
+type = "bin"
+authors = ["Jim Jim Valkema", "Emmy Lymphoma"]
+
+[dependencies]
+common = { path = "../common" }

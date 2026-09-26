@@ -26,7 +26,8 @@ contract WakeStake is Ownable {
     // event indexing is a pain and not needed for hackathons!!!
     mapping(uint256 index => uint256 leaf) public leaves;
     mapping (uint256 root => bool itExists) public rootHistory;
-    mapping (uint256 nulifier => bool itExists) nullifiers;
+    /// @notice public so groups can check a StakeOwnershipVerifier proof's stake wasn't withdrawn or woken yet
+    mapping (uint256 nullifier => bool isSpent) public nullifiers;
 
 
     event LeafInserted(uint256 indexed leaf);
@@ -65,7 +66,7 @@ contract WakeStake is Ownable {
         return _leavesToReturn;
     }
 
-    // Hashing functions. Keep these in sync with src/hashing.ts and circuits/src/main.nr.
+    // Hashing functions. Keep these in sync with src/hashing.ts and circuits/common/src/lib.nr.
 
     function _hashLeaf(address _token, uint256 _amount, uint256 _allSecretsHash) internal pure returns (uint256) {
       return PoseidonT4.hash([uint256(uint160(_token)), _amount, _allSecretsHash]);
@@ -100,7 +101,7 @@ contract WakeStake is Ownable {
     }
 
     /**
-     * @notice lays out the public inputs in the order the circuit expects them, see `main` in circuits/src/main.nr
+     * @notice lays out the public inputs in the order the circuit expects them, see `main` in circuits/wakestake/src/main.nr
      * public so the ui can debug against it
      * @dev for wake() the withdraw_* inputs are 0 and lose is false, for withdraw() new_leaf is 0
      */

@@ -1,35 +1,4 @@
-use binary_merkle_root::binary_merkle_root;
-use poseidon::poseidon::bn254 as poseidon;
-
-// Maximum tree depth the circuit supports. 32 levels = ~4 billion leaves.
-global MAX_DEPTH: u32 = 32;
-
-// Hashing functions. Keep these in sync with src/hashing.ts.
-
-fn hash_secret(secret: Field) -> Field {
-    poseidon::hash_1([secret])
-}
-
-fn hash_nullifier(nullifier_secret: Field) -> Field {
-    poseidon::hash_1([nullifier_secret])
-}
-
-fn hash_all_secrets(
-    nullifier_secret: Field,
-    secret_hash: Field,
-    wake_timestamp: Field,
-    donation_address: Field,
-) -> Field {
-    poseidon::hash_4([nullifier_secret, secret_hash, wake_timestamp, donation_address])
-}
-
-fn hash_leaf(token: Field, amount: Field, all_secrets_hash: Field) -> Field {
-    poseidon::hash_3([token, amount, all_secrets_hash])
-}
-
-fn hash_merkle_node(children: [Field; 2]) -> Field {
-    poseidon::hash_2(children)
-}
+use common::{hash_all_secrets, hash_leaf, hash_nullifier, hash_secret, MAX_DEPTH, merkle_root};
 
 fn main(
     root: pub Field,
@@ -65,9 +34,7 @@ fn main(
     let all_secrets_hash: Field =
         hash_all_secrets(nullifier_secret, secret_hash, wake_timestamp, donation_address);
     let leaf: Field = hash_leaf(secret_token, secret_amount, all_secrets_hash);
-    let indices: [bool; MAX_DEPTH] = index.to_le_bits();
-    let computed_root: Field = binary_merkle_root(hash_merkle_node, leaf, depth, indices, siblings);
-    assert(computed_root == root, "invalid merkle proof");
+    assert(merkle_root(leaf, index, depth, siblings) == root, "invalid merkle proof");
 
     // wake_timestamp is lower then past_timestamp
     let wake_is_in_past: bool = wake_timestamp.lt(past_timestamp);

@@ -11,7 +11,10 @@ import {
   buildNoirInputMap,
   createTimestampWindow,
   executeCircuit,
+  executeStakeOwnershipCircuit,
   generateProof,
+  generateStakeOwnershipProof,
+  stakeOwnershipPublicInputs,
 } from "../src/circuit.js";
 import { DAY, HOUR } from "../src/constants.js";
 import { fetchMerkleTree } from "../src/merkleTree.js";
@@ -23,10 +26,11 @@ import {
   type StakeDetails,
 } from "../src/note.js";
 
-// Built by `nargo compile` (also run by `pnpm build:verifier`).
-const compiledCircuit = JSON.parse(
-  readFileSync(new URL("../circuits/target/wakestake.json", import.meta.url), "utf8"),
-) as CompiledCircuit;
+// Built by `nargo compile --workspace` (also run by `pnpm build:verifier`).
+const loadCircuit = (name: string) =>
+  JSON.parse(readFileSync(new URL(`../circuits/target/${name}.json`, import.meta.url), "utf8")) as CompiledCircuit;
+const compiledCircuit = loadCircuit("wakestake");
+const stakeOwnershipCircuit = loadCircuit("stake_ownership");
 
 const STAKE_AMOUNT = 100n * 10n ** 18n;
 const FEE_PERCENTAGE = 5n;
@@ -40,7 +44,7 @@ describe("WakeStake", async function () {
     await viem.getWalletClients();
 
   async function deployFixture() {
-    const { wakeStake, verifier, donationGroupFactory } = await ignition.deploy(WakeStakeModule, {
+    const { wakeStake, verifier, stakeOwnershipVerifier, donationGroupFactory } = await ignition.deploy(WakeStakeModule, {
       parameters: {
         WakeStakeModule: {
           feePayoutAddress: feeCollector.account.address,
@@ -59,12 +63,13 @@ describe("WakeStake", async function () {
     const donationGroup = await viem.getContractAt("DonationGroup", donationGroupAddress);
     // a group that can return 0 from donationAddress(), which a real DonationGroup can't
     const mockGroup = await viem.deployContract("MockDonationAddressProvider", [charity.account.address]);
-    return { wakeStake, verifier, token, donationGroup, mockGroup };
+    return { wakeStake, verifier, stakeOwnershipVerifier, token, donationGroup, mockGroup };
   }
 
   /** @param donateTo what the stake is committed to: the charity wallet, a factory-made DonationGroup, or the mock group */
   async function setup({ donateTo = "charity" }: { donateTo?: "charity" | "donationGroup" | "mockGroup" } = {}) {
-    const { wakeStake, verifier, token, donationGroup, mockGroup } = await networkHelpers.loadFixture(deployFixture);
+    const { wakeStake, verifier, stakeOwnershipVerifier, token, donationGroup, mockGroup } =
+      await networkHelpers.loadFixture(deployFixture);
     const donationAddress = { charity: charity.account.address, donationGroup: donationGroup.address, mockGroup: mockGroup.address }[donateTo];
     const stakeDetails: StakeDetails = {
       token: addressToField(token.address),
@@ -155,6 +160,7 @@ describe("WakeStake", async function () {
     return {
       wakeStake,
       verifier,
+      stakeOwnershipVerifier,
       token,
       donationGroup,
       mockGroup,
@@ -365,6 +371,61 @@ describe("WakeStake", async function () {
 
       assert.equal(await token.read.balanceOf([group.address]), STAKE_AMOUNT - LOSE_FEE);
       assert.equal(await token.read.balanceOf([charity.account.address]), 0n);
+    });
+  });
+
+  describe("stake ownership proof", function () {
+    it("owner proves an unspent stake of at least the minimum that donates to their group", async function () {
+      const { wakeStake, stakeOwnershipVerifier, donationGroup, stake, wake, syncMerkleTree } = await setup({
+        donateTo: "donationGroup",
+      });
+      const stakedNote = await stake(DAY);
+
+      // exactly the minimum is enough
+      const { publicValues, publicInputs, proof } = await generateStakeOwnershipProof(stakeOwnershipCircuit, {
+        merkleTree: await syncMerkleTree(),
+        ...stakedNote,
+        minAmount: STAKE_AMOUNT,
+        claimer: owner.account.address,
+      });
+      assert.equal(await stakeOwnershipVerifier.read.verify([proof, publicInputs]), true);
+      assert.equal(publicValues.donationAddress, addressToField(donationGroup.address));
+      // the checks a group contract does next to the proof
+      assert.equal(await wakeStake.read.rootHistory([publicValues.root]), true);
+      assert.equal(await wakeStake.read.nullifiers([publicValues.nullifier]), false);
+
+      // the proof only works for its claimer (the verifier reverts or returns false on a bad proof)
+      const stolenPublicInputs = stakeOwnershipPublicInputs({
+        ...publicValues,
+        claimer: addressToField(groupMember.account.address),
+      });
+      assert.equal(await stakeOwnershipVerifier.read.verify([proof, stolenPublicInputs]).catch(() => false), false);
+
+      // after wake() the old commitment's nullifier is spent, so a group would reject this proof
+      await networkHelpers.time.increase(HOUR);
+      await wake(stakedNote, DAY);
+      assert.equal(await wakeStake.read.nullifiers([publicValues.nullifier]), true);
+    });
+
+    it("can't prove a stake below the minimum or without the owner's secret", async function () {
+      const { stake, syncMerkleTree } = await setup({ donateTo: "donationGroup" });
+      const stakedNote = await stake(DAY);
+      const inputs = {
+        merkleTree: await syncMerkleTree(),
+        ...stakedNote,
+        minAmount: STAKE_AMOUNT,
+        claimer: owner.account.address,
+      };
+
+      await assert.rejects(
+        executeStakeOwnershipCircuit(stakeOwnershipCircuit, { ...inputs, minAmount: STAKE_AMOUNT + 1n }),
+        /stake amount is below min_amount/,
+      );
+      // group members know every secret except `secret`
+      await assert.rejects(
+        executeStakeOwnershipCircuit(stakeOwnershipCircuit, { ...inputs, secret: 0n }),
+        /you need to know the secret/,
+      );
     });
   });
 
