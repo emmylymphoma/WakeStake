@@ -25,5 +25,7 @@ export default buildModule("WakeStakeModule", (m) => {
     libraries: { LeanIMT: leanIMT, PoseidonT4: poseidonT4 },
   });
 
-  return { wakeStake, verifier, leanIMT, poseidonT3, poseidonT4 };
+  const donationGroupFactory = m.contract("DonationGroupFactory");
+
+  return { wakeStake, verifier, leanIMT, poseidonT3, poseidonT4, donationGroupFactory };
 });

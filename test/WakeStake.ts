@@ -40,7 +40,7 @@ describe("WakeStake", async function () {
     await viem.getWalletClients();
 
   async function deployFixture() {
-    const { wakeStake, verifier } = await ignition.deploy(WakeStakeModule, {
+    const { wakeStake, verifier, donationGroupFactory } = await ignition.deploy(WakeStakeModule, {
       parameters: {
         WakeStakeModule: {
           feePayoutAddress: feeCollector.account.address,
@@ -51,18 +51,25 @@ describe("WakeStake", async function () {
     const token = await viem.deployContract("MockERC20", ["Mock", "MCK"]);
     await token.write.mint([owner.account.address, STAKE_AMOUNT]);
     await token.write.approve([wakeStake.address, STAKE_AMOUNT], { account: owner.account });
-    // deployed here, since loadFixture reverts anything deployed before it
-    const group = await viem.deployContract("MockDonationAddressProvider", [charity.account.address]);
-    return { wakeStake, verifier, token, group };
+    // groups are created here, since loadFixture reverts anything deployed before it
+    const { result: donationGroupAddress } = await donationGroupFactory.simulate.createDonationGroup([
+      charity.account.address,
+    ]);
+    await donationGroupFactory.write.createDonationGroup([charity.account.address]);
+    const donationGroup = await viem.getContractAt("DonationGroup", donationGroupAddress);
+    // a group that can return 0 from donationAddress(), which a real DonationGroup can't
+    const mockGroup = await viem.deployContract("MockDonationAddressProvider", [charity.account.address]);
+    return { wakeStake, verifier, token, donationGroup, mockGroup };
   }
 
-  /** @param donateToGroup commit the stake to the mock group contract instead of the charity wallet */
-  async function setup({ donateToGroup = false } = {}) {
-    const { wakeStake, verifier, token, group } = await networkHelpers.loadFixture(deployFixture);
+  /** @param donateTo what the stake is committed to: the charity wallet, a factory-made DonationGroup, or the mock group */
+  async function setup({ donateTo = "charity" }: { donateTo?: "charity" | "donationGroup" | "mockGroup" } = {}) {
+    const { wakeStake, verifier, token, donationGroup, mockGroup } = await networkHelpers.loadFixture(deployFixture);
+    const donationAddress = { charity: charity.account.address, donationGroup: donationGroup.address, mockGroup: mockGroup.address }[donateTo];
     const stakeDetails: StakeDetails = {
       token: addressToField(token.address),
       amount: STAKE_AMOUNT,
-      donationAddress: addressToField(donateToGroup ? group.address : charity.account.address),
+      donationAddress: addressToField(donationAddress),
     };
 
     async function syncMerkleTree() {
@@ -149,7 +156,8 @@ describe("WakeStake", async function () {
       wakeStake,
       verifier,
       token,
-      group,
+      donationGroup,
+      mockGroup,
       stakeDetails,
       syncMerkleTree,
       nextTimestampWindow,
@@ -306,16 +314,21 @@ describe("WakeStake", async function () {
   });
 
   describe("lost stake committed to a group contract", function () {
+    type Setup = Awaited<ReturnType<typeof setup>>;
+
     /**
-     * Stakes with the mock group as the donation address, lets `configureGroup` change what its
-     * donationAddress() does, oversleeps, and a group member withdraws.
+     * Stakes with `donateTo` as the donation address, lets `configureMockGroup` change what the mock's
+     * donationAddress() returns, oversleeps, and a group member withdraws.
      */
     async function loseStakeToGroup(
+      donateTo: "donationGroup" | "mockGroup",
       expectedDonationAddress: "charity" | "group",
-      configureGroup: (group: Awaited<ReturnType<typeof setup>>["group"]) => Promise<unknown> = async () => {},
+      configureMockGroup: (mockGroup: Setup["mockGroup"]) => Promise<unknown> = async () => {},
     ) {
-      const { wakeStake, token, group, stake, withdraw } = await setup({ donateToGroup: true });
-      await configureGroup(group);
+      const setupResult = await setup({ donateTo });
+      const { wakeStake, token, mockGroup, stake, withdraw } = setupResult;
+      const group = setupResult[donateTo];
+      await configureMockGroup(mockGroup);
       const stakedNote = await stake(DAY);
       await networkHelpers.time.increase(DAY + HOUR);
       await viem.assertions.emitWithArgs(
@@ -334,8 +347,8 @@ describe("WakeStake", async function () {
       return { wakeStake, token, group };
     }
 
-    it("pays the group's donationAddress() directly", async function () {
-      const { wakeStake, token, group } = await loseStakeToGroup("charity");
+    it("pays a factory-made DonationGroup's donationAddress directly", async function () {
+      const { wakeStake, token, group } = await loseStakeToGroup("donationGroup", "charity");
 
       assert.equal(await token.read.balanceOf([charity.account.address]), STAKE_AMOUNT - LOSE_FEE);
       assert.equal(await token.read.balanceOf([group.address]), 0n);
@@ -346,8 +359,8 @@ describe("WakeStake", async function () {
     });
 
     it("pays the group itself when donationAddress() returns zero", async function () {
-      const { token, group } = await loseStakeToGroup("group", (group) =>
-        group.write.setDonationAddress([zeroAddress]),
+      const { token, group } = await loseStakeToGroup("mockGroup", "group", (mockGroup) =>
+        mockGroup.write.setDonationAddress([zeroAddress]),
       );
 
       assert.equal(await token.read.balanceOf([group.address]), STAKE_AMOUNT - LOSE_FEE);
