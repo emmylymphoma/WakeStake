@@ -5,5 +5,6 @@
   "WakeStakeModule#ZKTranscriptLib": "0x02078800187B4E831479775c4e240064578602aE",
   "WakeStakeModule#HonkVerifier": "0xe241fe1088738e83057F69b65c19912684ee0B78",
   "WakeStakeModule#LeanIMT": "0x8817422387ac287Af6D0735678F53ed21308Fd80",
-  "WakeStakeModule#WakeStake": "0xcF16ab3255EEB05ef8fC57932f6470FEaBA8deAF"
+  "WakeStakeModule#WakeStake": "0xcF16ab3255EEB05ef8fC57932f6470FEaBA8deAF",
+  "TestTokenModule#MockERC20": "0xc755dBaA628458F76149c682D3ba0Cd0CCf62053"
 }
