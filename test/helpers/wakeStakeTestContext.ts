@@ -35,8 +35,11 @@ export async function createWakeStakeTestContext() {
   const publicClient = await viem.getPublicClient();
   // `owner` is the staker who has to wake up, `contractOwner` is WakeStake's Ownable admin,
   // `groupAdmin` created the DonationGroup
+  const allWallets = await viem.getWalletClients();
   const [contractOwner, owner, ownerRecipient, groupMember, charity, feeCollector, newFeeCollector, groupAdmin] =
-    await viem.getWalletClients();
+    allWallets;
+  // more stakers with their own funds, for votes that need several members
+  const extraStakers = allWallets.slice(8, 12);
 
   async function deployFixture() {
     const { wakeStake, verifier, stakeOwnershipVerifier, donationGroupFactory } = await ignition.deploy(
@@ -51,8 +54,10 @@ export async function createWakeStakeTestContext() {
       },
     );
     const token = await viem.deployContract("MockERC20", ["Mock", "MCK"]);
-    await token.write.mint([owner.account.address, STAKE_AMOUNT]);
-    await token.write.approve([wakeStake.address, STAKE_AMOUNT], { account: owner.account });
+    for (const staker of [owner, ...extraStakers]) {
+      await token.write.mint([staker.account.address, STAKE_AMOUNT]);
+      await token.write.approve([wakeStake.address, STAKE_AMOUNT], { account: staker.account });
+    }
     // groups are created here, since loadFixture reverts anything deployed before it
     const createArgs = [charity.account.address, token.address, STAKE_AMOUNT] as const;
     const { result: donationGroupAddress } = await donationGroupFactory.simulate.createDonationGroup(createArgs, {
@@ -95,12 +100,12 @@ export async function createWakeStakeTestContext() {
       return { transactionTimestamp, ...createTimestampWindow(transactionTimestamp) };
     }
 
-    async function stake(secondsUntilWake: bigint) {
+    async function stake(secondsUntilWake: bigint, staker = owner) {
       const currentTimestamp = BigInt(await networkHelpers.time.latest());
       const stakedNote = createNote(stakeDetails, currentTimestamp + secondsUntilWake);
       await wakeStake.write.stake(
         [token.address, STAKE_AMOUNT, noteAllSecretsHash(stakedNote.note)],
-        { account: owner.account },
+        { account: staker.account },
       );
       return stakedNote;
     }
@@ -181,6 +186,6 @@ export async function createWakeStakeTestContext() {
     viem,
     networkHelpers,
     setup,
-    wallets: { contractOwner, owner, ownerRecipient, groupMember, charity, feeCollector, newFeeCollector, groupAdmin },
+    wallets: { contractOwner, owner, ownerRecipient, groupMember, charity, feeCollector, newFeeCollector, groupAdmin, extraStakers },
   };
 }

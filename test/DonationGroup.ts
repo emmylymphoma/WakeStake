@@ -7,8 +7,10 @@ import {
   generateStakeOwnershipProof,
   stakeOwnershipPublicInputs,
 } from "../src/circuit.js";
+import { zeroAddress, type Address } from "viem";
+
 import { DAY, HOUR } from "../src/constants.js";
-import { addressToField } from "../src/note.js";
+import { addressToField, type NoteWithSecret } from "../src/note.js";
 import {
   createWakeStakeTestContext,
   STAKE_AMOUNT,
@@ -20,8 +22,10 @@ describe("DonationGroup", async function () {
     viem,
     networkHelpers,
     setup,
-    wallets: { contractOwner, owner, groupMember, groupAdmin, charity },
+    wallets: { contractOwner, owner, ownerRecipient, groupMember, groupAdmin, charity, extraStakers },
   } = await createWakeStakeTestContext();
+
+  const sameAddress = (actual: Address, expected: Address) => assert.equal(actual.toLowerCase(), expected.toLowerCase());
 
   /** Owner stakes to the group, and proves they own that stake with the group's minimum. */
   async function stakeToGroupAndProve() {
@@ -104,10 +108,10 @@ describe("DonationGroup", async function () {
     );
     // voting uses the same kind of proof
     await viem.assertions.emitWithArgs(
-      donationGroup.write.vote([charity.account.address, root, nullifier, proof], { account: owner.account }),
+      donationGroup.write.voteDonationAddress([charity.account.address, root, nullifier, proof], { account: owner.account }),
       donationGroup,
-      "Voted",
-      [owner.account.address, charity.account.address],
+      "DonationAddressVoted",
+      [owner.account.address, charity.account.address, 1n],
     );
   });
 
@@ -148,7 +152,7 @@ describe("DonationGroup", async function () {
 
     await donationGroup.write.addMember([owner.account.address], { account: groupAdmin.account });
     await viem.assertions.revertWith(
-      donationGroup.write.vote([charity.account.address, root + 1n, nullifier, proof], { account: owner.account }),
+      donationGroup.write.voteDonationAddress([charity.account.address, root + 1n, nullifier, proof], { account: owner.account }),
       "root provided has not existed in WakeStake",
     );
   });
@@ -172,8 +176,125 @@ describe("DonationGroup", async function () {
     await networkHelpers.time.increase(HOUR);
     await wake(stakedNote, DAY);
     await viem.assertions.revertWith(
-      donationGroup.write.vote([charity.account.address, root, nullifier, proof], { account: owner.account }),
+      donationGroup.write.voteDonationAddress([charity.account.address, root, nullifier, proof], { account: owner.account }),
       "stake was already withdrawn or woken up",
     );
+  });
+
+  describe("voting on the donation address and minimum stake", function () {
+    /** Five members each stake to the group and get added by the admin. `proofFor(i)` proves member i's stake. */
+    async function fiveStakingMembers() {
+      const context = await setup({ donateTo: "donationGroup" });
+      const { donationGroup, stake, syncMerkleTree } = context;
+      const members = [owner, ...extraStakers];
+      const notes: NoteWithSecret[] = [];
+      for (const member of members) {
+        notes.push(await stake(DAY, member));
+        await donationGroup.write.addMember([member.account.address], { account: groupAdmin.account });
+      }
+      const merkleTree = await syncMerkleTree();
+
+      /** [root, nullifier, proof] for member i, against the group's current minimum */
+      async function proofFor(memberIndex: number) {
+        const { publicValues, proof } = await generateStakeOwnershipProof(stakeOwnershipCircuit, {
+          merkleTree,
+          ...notes[memberIndex],
+          minAmount: await donationGroup.read.minStakeAmount(),
+          claimer: members[memberIndex].account.address,
+        });
+        return [publicValues.root, publicValues.nullifier, proof] as const;
+      }
+      return { ...context, members, proofFor };
+    }
+
+    it("switches the donation address instantly once 3 of 5 members vote for it", async function () {
+      const { donationGroup, members, proofFor } = await fiveStakingMembers();
+      const newCause = ownerRecipient.account.address;
+      assert.equal(await donationGroup.read.memberCount(), 5n);
+
+      // 2 of 5 is not a majority
+      for (const [memberIndex, expectedVotes] of [[0, 1n], [1, 2n]] as const) {
+        await viem.assertions.emitWithArgs(
+          donationGroup.write.voteDonationAddress([newCause, ...(await proofFor(memberIndex))], {
+            account: members[memberIndex].account,
+          }),
+          donationGroup,
+          "DonationAddressVoted",
+          [members[memberIndex].account.address, newCause, expectedVotes],
+        );
+      }
+      sameAddress(await donationGroup.read.donationAddress(), charity.account.address);
+
+      // the third vote is
+      await viem.assertions.emitWithArgs(
+        donationGroup.write.voteDonationAddress([newCause, ...(await proofFor(2))], { account: members[2].account }),
+        donationGroup,
+        "DonationAddressChanged",
+        [newCause],
+      );
+      sameAddress(await donationGroup.read.donationAddress(), newCause);
+    });
+
+    it("a member voting again moves their vote instead of adding one", async function () {
+      const { donationGroup, members, proofFor } = await fiveStakingMembers();
+      const firstChoice = ownerRecipient.account.address;
+      const secondChoice = groupMember.account.address;
+      const proof = await proofFor(0);
+      const asMember = { account: members[0].account };
+
+      await donationGroup.write.voteDonationAddress([firstChoice, ...proof], asMember);
+      await donationGroup.write.voteDonationAddress([secondChoice, ...proof], asMember);
+      await donationGroup.write.voteDonationAddress([secondChoice, ...proof], asMember);
+
+      assert.equal(await donationGroup.read.donationAddressVotes([firstChoice]), 0n);
+      assert.equal(await donationGroup.read.donationAddressVotes([secondChoice]), 1n);
+      sameAddress(await donationGroup.read.donationAddressVoteOf([members[0].account.address]), secondChoice);
+      await viem.assertions.revertWith(
+        donationGroup.write.voteDonationAddress([zeroAddress, ...proof], asMember),
+        "donation address cannot be zero",
+      );
+    });
+
+    it("lowers the minimum stake once 3 of 5 vote for it, and old proofs stop working", async function () {
+      const { donationGroup, members, proofFor } = await fiveStakingMembers();
+      const lowerMinimum = STAKE_AMOUNT / 2n;
+      // made for the old minimum, which is one of the proof's public inputs
+      const staleProof = await proofFor(3);
+
+      for (const memberIndex of [0, 1]) {
+        await donationGroup.write.voteMinStakeAmount([lowerMinimum, ...(await proofFor(memberIndex))], {
+          account: members[memberIndex].account,
+        });
+      }
+      assert.equal(await donationGroup.read.minStakeAmount(), STAKE_AMOUNT);
+      await viem.assertions.emitWithArgs(
+        donationGroup.write.voteMinStakeAmount([lowerMinimum, ...(await proofFor(2))], { account: members[2].account }),
+        donationGroup,
+        "MinStakeAmountChanged",
+        [lowerMinimum],
+      );
+      assert.equal(await donationGroup.read.minStakeAmount(), lowerMinimum);
+
+      await assert.rejects(
+        donationGroup.write.registerName(["dave", ...staleProof], { account: members[3].account }),
+      );
+      await viem.assertions.emitWithArgs(
+        donationGroup.write.registerName(["dave", ...(await proofFor(3))], { account: members[3].account }),
+        donationGroup,
+        "NewMember",
+        [members[3].account.address, "dave"],
+      );
+    });
+
+    it("adding the same member twice is rejected, so the member count stays honest", async function () {
+      const { donationGroup } = await setup();
+      await donationGroup.write.addMember([groupMember.account.address], { account: groupAdmin.account });
+
+      await viem.assertions.revertWith(
+        donationGroup.write.addMember([groupMember.account.address], { account: groupAdmin.account }),
+        "already a member",
+      );
+      assert.equal(await donationGroup.read.memberCount(), 1n);
+    });
   });
 });

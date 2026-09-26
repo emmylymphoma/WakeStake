@@ -15,16 +15,30 @@ contract DonationGroup is IDonationAddressProvider, Initializable {
     IWakeStake public immutable wakeStake;
     IStakeOwnershipVerifier public immutable stakeOwnershipVerifier;
 
+    /// @notice members can change it with voteDonationAddress
     address public donationAddress;
     /// @notice whoever created the group, the only account that can add members
     address public admin;
     address public stakeToken;
+    /// @notice members can change it with voteMinStakeAmount
     uint256 public minStakeAmount;
     mapping(address member => bool isAdded) public isMember;
+    /// @notice everyone the admin added, a vote wins with more than half of them
+    uint256 public memberCount;
+
+    // Standing votes: each member has at most one vote per setting, voting again moves it.
+    mapping(address member => address donationAddress) public donationAddressVoteOf;
+    mapping(address donationAddress => uint256 votes) public donationAddressVotes;
+    mapping(address member => bool hasVoted) public hasVotedMinStakeAmount;
+    mapping(address member => uint256 minStakeAmount) public minStakeAmountVoteOf;
+    mapping(uint256 minStakeAmount => uint256 votes) public minStakeAmountVotes;
 
     event MemberAdded(address indexed member);
     event NewMember(address indexed member, string name);
-    event Voted(address indexed voter, address indexed cause);
+    event DonationAddressVoted(address indexed voter, address indexed donationAddress, uint256 votes);
+    event DonationAddressChanged(address indexed donationAddress);
+    event MinStakeAmountVoted(address indexed voter, uint256 minStakeAmount, uint256 votes);
+    event MinStakeAmountChanged(uint256 minStakeAmount);
 
     /// @dev the implementation itself can never be initialized, only its clones
     constructor(IWakeStake _wakeStake, IStakeOwnershipVerifier _stakeOwnershipVerifier) {
@@ -46,9 +60,13 @@ contract DonationGroup is IDonationAddressProvider, Initializable {
         minStakeAmount = _minStakeAmount;
     }
 
+    // TODO: add mechanism for member removal, maybe just dox who failed to wake in time and remove them upon donation.
     function addMember(address _member) external {
         require(msg.sender == admin, "only the group admin can add members");
+        // counted once, otherwise the admin could inflate memberCount and block every vote
+        require(!isMember[_member], "already a member");
         isMember[_member] = true;
+        memberCount++;
         emit MemberAdded(_member);
     }
 
@@ -58,10 +76,48 @@ contract DonationGroup is IDonationAddressProvider, Initializable {
         emit NewMember(msg.sender, _name);
     }
 
-    /// @notice mock for now: will count votes for where lost stakes get donated
-    function vote(address _cause, uint256 _root, uint256 _nullifier, bytes calldata _proof) external {
+    /// @notice vote for where lost stakes get donated. Adopted instantly once more than half of all members agree.
+    function voteDonationAddress(address _donationAddress, uint256 _root, uint256 _nullifier, bytes calldata _proof)
+        external
+    {
+        require(_donationAddress != address(0), "donation address cannot be zero");
         _verifyStakeOwnership(_root, _nullifier, _proof);
-        emit Voted(msg.sender, _cause);
+
+        // simple tally, remove voteOf previous address, add it to new
+        address previousVote = donationAddressVoteOf[msg.sender];
+        if (previousVote != address(0)) donationAddressVotes[previousVote]--;
+        donationAddressVoteOf[msg.sender] = _donationAddress;
+        uint256 votes = ++donationAddressVotes[_donationAddress];
+        emit DonationAddressVoted(msg.sender, _donationAddress, votes);
+
+        if (_isMajority(votes) && _donationAddress != donationAddress) {
+            donationAddress = _donationAddress;
+            emit DonationAddressChanged(_donationAddress);
+        }
+    }
+
+    /// @notice vote for the least members must stake. Adopted instantly once more than half of all members agree.
+    function voteMinStakeAmount(uint256 _minStakeAmount, uint256 _root, uint256 _nullifier, bytes calldata _proof)
+        external
+    {
+        _verifyStakeOwnership(_root, _nullifier, _proof);
+
+        // 0 is a valid amount, so track "has voted" separately
+        if (hasVotedMinStakeAmount[msg.sender]) minStakeAmountVotes[minStakeAmountVoteOf[msg.sender]]--;
+        hasVotedMinStakeAmount[msg.sender] = true;
+        minStakeAmountVoteOf[msg.sender] = _minStakeAmount;
+        uint256 votes = ++minStakeAmountVotes[_minStakeAmount];
+        emit MinStakeAmountVoted(msg.sender, _minStakeAmount, votes);
+
+        if (_isMajority(votes) && _minStakeAmount != minStakeAmount) {
+            minStakeAmount = _minStakeAmount;
+            emit MinStakeAmountChanged(_minStakeAmount);
+        }
+    }
+
+    /// @dev more than half of all members, e.g. 3 of 5 or 3 of 4
+    function _isMajority(uint256 _votes) internal view returns (bool) {
+        return _votes * 2 > memberCount;
     }
 
     /**
