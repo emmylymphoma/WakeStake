@@ -183,3 +183,19 @@ test('regenerating the code invalidates the old printout', async ({ page }, info
   await page.getByTestId('qr-photo-input').setInputFiles(oldQr);
   await expect(page.getByText(/but not yours/)).toBeVisible();
 });
+
+test('demo controls can be switched off in Settings', async ({ page }, info) => {
+  await onboard(page, info.outputDir);
+  await expect(page.getByRole('button', { name: /Ring alarm now/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByText('Demo controls').click();
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page.getByRole('button', { name: /Ring alarm now/ })).toHaveCount(0);
+  await expect(page.getByText('Demo controls')).toHaveCount(0);
+
+  // Still off after a reload.
+  await page.reload();
+  await expect(page.getByText('Stake at risk')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Ring alarm now/ })).toHaveCount(0);
+});

@@ -1,5 +1,5 @@
 import { Screen } from '../components/Screen';
-import { Button, Card, Eyebrow, Stat } from '../components/ui';
+import { Button, Card, Eyebrow, Stat, Toggle } from '../components/ui';
 import { formatMoney } from '../domain/money';
 import { useNavigation } from '../navigation/Navigation';
 import { useAppState } from '../state/AppStateContext';
@@ -65,6 +65,15 @@ export function SettingsScreen() {
           </div>
         </Card>
       ) : null}
+
+      <Card>
+        <Toggle
+          checked={state.demoControls}
+          onChange={(on) => dispatch({ type: 'SET_DEMO_CONTROLS', on })}
+          label="Demo controls"
+          description="“Ring alarm now”, “Simulate snooze” and “Simulate scan”. Turn off to show the app as it really works."
+        />
+      </Card>
 
       <Button variant="ghost" onClick={resetDemo}>
         ↺ Reset demo

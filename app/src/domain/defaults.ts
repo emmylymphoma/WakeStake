@@ -20,5 +20,6 @@ export function createInitialState(): AppState {
     stats: { snoozeCount: 0, totalLost: 0, streak: 0, bestStreak: 0, wakeCount: 0 },
     history: [],
     session: null,
+    demoControls: true,
   };
 }

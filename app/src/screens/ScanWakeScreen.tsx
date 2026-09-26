@@ -45,9 +45,11 @@ export function ScanWakeScreen() {
       onBack={back}
       footer={
         code ? (
-          <Button variant="ghost" disabled={verifying || proving} onClick={() => handleScan(encodeWakeQr(code))}>
-            Simulate scan (demo only)
-          </Button>
+          state.demoControls ? (
+            <Button variant="ghost" disabled={verifying || proving} onClick={() => handleScan(encodeWakeQr(code))}>
+              Simulate scan (demo only)
+            </Button>
+          ) : null
         ) : (
           <Button loading={proving} onClick={completeWake}>
             I’m up
@@ -62,7 +64,11 @@ export function ScanWakeScreen() {
       <QrScanner onResult={handleScan} disabled={verifying || proving} />
 
       <div role="status" aria-live="polite">
-        {proving ? <p className="scan-feedback">Proving you’re up on-chain…</p> : verifying ? <p className="scan-feedback">Checking…</p> : null}
+        {proving ? (
+          <p className="scan-feedback">Proving you’re up on-chain…</p>
+        ) : verifying ? (
+          <p className="scan-feedback">Checking…</p>
+        ) : null}
         {wakeError ? <p className="scan-feedback scan-feedback-bad">{wakeError}</p> : null}
         {rejection ? <p className="scan-feedback scan-feedback-bad">{rejection}</p> : null}
       </div>

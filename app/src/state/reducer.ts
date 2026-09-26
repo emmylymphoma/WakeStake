@@ -28,6 +28,7 @@ export type Action =
   | { type: 'WAKE' }
   /** The deposit went through: the full configured amount is at risk again. */
   | { type: 'STAKE_LOCKED' }
+  | { type: 'SET_DEMO_CONTROLS'; on: boolean }
   | { type: 'RESET' };
 
 export function reducer(state: AppState, action: Action): AppState {
@@ -69,7 +70,10 @@ export function reducer(state: AppState, action: Action): AppState {
       return applyWake(state);
     case 'STAKE_LOCKED':
       return applyRestake(state);
+    case 'SET_DEMO_CONTROLS':
+      return { ...state, demoControls: action.on };
     case 'RESET':
-      return createInitialState();
+      // The demo switch is a viewer preference, not demo data.
+      return { ...createInitialState(), demoControls: state.demoControls };
   }
 }

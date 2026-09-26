@@ -179,4 +179,6 @@ export interface AppState {
   /** Most recent first. */
   history: SnoozeEvent[];
   session: AlarmSession | null;
+  /** Shows the "ring now" / "simulate" buttons. A web page can't ring by itself, so on by default. */
+  demoControls: boolean;
 }

@@ -134,11 +134,7 @@ export function DashboardScreen() {
       </Card>
 
       <Card className="link-card">
-        <button
-          type="button"
-          className="link-row"
-          onClick={() => navigate({ name: 'beneficiary', mode: 'manage' })}
-        >
+        <button type="button" className="link-row" onClick={() => navigate({ name: 'beneficiary', mode: 'manage' })}>
           <span aria-hidden>🔒</span>
           <span className="grow">
             <strong>Your charity: classified</strong>
@@ -175,22 +171,24 @@ export function DashboardScreen() {
         </Card>
       )}
 
-      <section className="demo-panel stack-sm">
-        <div className="demo-panel-head">
-          <Eyebrow>Demo controls</Eyebrow>
-        </div>
-        <Button variant="secondary" onClick={() => navigate({ name: 'alarm' })}>
-          ⏰ Ring alarm now
-        </Button>
-        <Button
-          variant={quote.kind === 'free' ? 'secondary' : 'danger'}
-          disabled={quote.kind === 'broke' || step !== null}
-          onClick={simulateSnooze}
-        >
-          😴 {snoozeButtonLabel(quote, 'Simulate Snooze')}
-        </Button>
-        {error ? <p className="text-danger small">{error}</p> : null}
-      </section>
+      {state.demoControls ? (
+        <section className="demo-panel stack-sm">
+          <div className="demo-panel-head">
+            <Eyebrow>Demo controls</Eyebrow>
+          </div>
+          <Button variant="secondary" onClick={() => navigate({ name: 'alarm' })}>
+            ⏰ Ring alarm now
+          </Button>
+          <Button
+            variant={quote.kind === 'free' ? 'secondary' : 'danger'}
+            disabled={quote.kind === 'broke' || step !== null}
+            onClick={simulateSnooze}
+          >
+            😴 {snoozeButtonLabel(quote, 'Simulate Snooze')}
+          </Button>
+          {error ? <p className="text-danger small">{error}</p> : null}
+        </section>
+      ) : null}
     </Screen>
   );
 }
