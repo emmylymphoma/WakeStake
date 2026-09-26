@@ -14,7 +14,7 @@ contract WakeStake {
 
     // event indexing is a pain and not needed for hackathons!!!
     mapping(uint256 index => uint256 leaf) public leaves;
-    mapping (uint256 root => bool itExists) rootHistory;
+    mapping (uint256 root => bool itExists) public rootHistory;
     mapping (uint256 nulifier => bool itExists) nullifiers;
 
 

@@ -59,6 +59,7 @@ fn main(
         // 0          past_timestamp      future_timestamp
         //  \                   /
         //  wake_timestamp can only be between these
+        assert(withdraw_token != 0, "You woke up too late, you cannot wake(), only withdraw");
         assert(
             donation_address == withdraw_recipient,
             "You woke up too late, you can only withdraw to donation_address now",
